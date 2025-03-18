@@ -65,8 +65,8 @@ def parse_perf_output(perf_output: str) -> dict:
 
 def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 1) -> list:
     stats = []
-    perf_stats = {}
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
+        perf_stats = {}
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
         for n in range(amount_of_tries):
