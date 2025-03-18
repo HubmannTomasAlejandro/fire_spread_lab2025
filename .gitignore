@@ -11,3 +11,5 @@ graphics/*.mp4
 
 data/
 data.zip
+
+*.gcda
