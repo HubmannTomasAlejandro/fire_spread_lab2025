@@ -7,6 +7,7 @@
 
 #include "fires.hpp"
 #include "landscape.hpp"
+#include "constants.hpp"
 
 double spread_probability(
     const Cell& burning, const Cell& neighbour, SimulationParams params, double angle,
@@ -30,6 +31,7 @@ double spread_probability(
   linpred += params.fwi_pred * neighbour.fwi;
   linpred += params.aspect_pred * neighbour.aspect;
 
+  //parametro p de la distribucion de bernoulli
   linpred += wind_term * params.wind_pred + elev_term * params.elevation_pred +
              slope_term * params.slope_pred;
 
@@ -82,14 +84,11 @@ Fire simulate_fire(
 
       const Cell& burning_cell = landscape[{ burning_cell_0, burning_cell_1 }];
 
-      constexpr int moves[8][2] = { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 },
-                                    { 0, 1 },   { 1, -1 }, { 1, 0 },  { 1, 1 } };
-
       int neighbors_coords[2][8];
 
       for (size_t i = 0; i < 8; i++) {
-        neighbors_coords[0][i] = int(burning_cell_0) + moves[i][0];
-        neighbors_coords[1][i] = int(burning_cell_1) + moves[i][1];
+        neighbors_coords[0][i] = int(burning_cell_0) + MOVES[i][0];
+        neighbors_coords[1][i] = int(burning_cell_1) + MOVES[i][1];
       }
       // Note that in the case 0 - 1 we will have size_t_MAX
 
@@ -116,12 +115,9 @@ Fire simulate_fire(
         if (!burnable_cell)
           continue;
 
-        constexpr double angles[8] = { M_PI * 3 / 4, M_PI, M_PI * 5 / 4, M_PI / 2, M_PI * 3 / 2,
-                                       M_PI / 4,     0,    M_PI * 7 / 4 };
-
         // simulate fire
         double prob = spread_probability(
-            burning_cell, neighbour_cell, params, angles[n], distance, elevation_mean,
+            burning_cell, neighbour_cell, params, ANGLES[n], distance, elevation_mean,
             elevation_sd, upper_limit
         );
 
