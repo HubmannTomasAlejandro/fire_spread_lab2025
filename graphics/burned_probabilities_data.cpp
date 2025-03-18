@@ -5,6 +5,7 @@
 #include "landscape.hpp"
 #include "many_simulations.hpp"
 #include "spread_functions.hpp"
+#include <fstream>
 
 #define DISTANCE 30
 #define ELEVATION_MEAN 1163.3
@@ -41,17 +42,27 @@ int main(int argc, char* argv[]) {
         landscape, ignition_cells, params, DISTANCE, ELEVATION_MEAN, ELEVATION_SD, UPPER_LIMIT,
         SIMULATIONS
     );
-    std::cout << "Landscape size: " << landscape.width << " " << landscape.height << std::endl;
-    std::cout << "Simulations: " << SIMULATIONS << std::endl;
+
+    std::ofstream outFile("burned_probabilities_data.txt", std::ios::trunc); // Open file for writing
+    if (!outFile) {
+        std::cerr << "Error opening file!" << std::endl;
+        return 1;
+    }
+
+    outFile << "Landscape size: " << landscape.width << " " << landscape.height << std::endl;
+    outFile << "Simulations: " << SIMULATIONS << std::endl;
     for (size_t i = 0; i < landscape.height; i++) {
       for (size_t j = 0; j < landscape.width; j++) {
         if (j != 0) {
-          std::cout << " ";
+          outFile << " ";
         }
-        std::cout << burned_amounts[{j, i}];
+        outFile << burned_amounts[{j, i}];
       }
-      std::cout << std::endl;
+      outFile << std::endl;
     }
+
+    outFile.close(); // Close the file
+
 
   } catch (std::runtime_error& e) {
     std::cerr << "ERROR: " << e.what() << std::endl;

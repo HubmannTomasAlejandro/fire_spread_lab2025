@@ -6,6 +6,7 @@
 #include "landscape.hpp"
 #include "many_simulations.hpp"
 #include "spread_functions.hpp"
+#include <fstream>
 
 #define DISTANCE 30
 #define ELEVATION_MEAN 1163.3
@@ -43,7 +44,13 @@ int main(int argc, char* argv[]) {
 
     // Print the fire
 
-    std::cout << "Landscape size: " << landscape.width << " " << landscape.height << std::endl;
+    std::ofstream outFile("fire_animation_data.txt", std::ios::trunc);
+    // Open file for writing
+    if (!outFile) {
+        std::cerr << "Error opening file!" << std::endl;
+        return 1;
+    }
+    outFile << "Landscape size: " << landscape.width << " " << landscape.height << std::endl;
 
     size_t step = 0;
     size_t i = 0;
@@ -51,9 +58,9 @@ int main(int argc, char* argv[]) {
       if (i >= j) {
         continue;
       }
-      std::cout << "Step " << step << ":" << std::endl;
+      outFile << "Step " << step << ":" << std::endl;
       for (; i < j; i++) {
-        std::cout << fire.burned_ids[i].first << " " << fire.burned_ids[i].second << std::endl;
+        outFile << fire.burned_ids[i].first << " " << fire.burned_ids[i].second << std::endl;
       }
       step++;
     }

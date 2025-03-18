@@ -3,6 +3,9 @@
 graphics/burned_probabilities_data
 graphics/fire_animation_data
 
+burned_probabilities_data.txt
+fire_animation_data.txt
+
 graphics/*.png
 graphics/*.mp4
 

@@ -26,15 +26,17 @@ def read_burned_amounts() -> Tuple[int, np.ndarray]:
     74 82 79 73 0
     64 75 64 55 0
     """
-    _, _, width, height = input().split()
-    width, height = int(width), int(height)
-    _, simulations = input().split()
-    simulations = int(simulations)
-    burned_amounts = np.zeros((width, height), dtype=int)
-    for j in range(height):
-        line = input().split()
-        for i, amount in enumerate(line):
-            burned_amounts[i, j] = int(amount)
+    filename = "burned_probabilities_data.txt"
+    with open(filename, "r") as file:
+        _, _, width, height = file.readline().split()
+        width, height = int(width), int(height)
+        _, simulations = file.readline().split()
+        simulations = int(simulations)
+        burned_amounts = np.zeros((width, height), dtype=int)
+        for j in range(height):
+            line = file.readline().split()
+            for i, amount in enumerate(line):
+                burned_amounts[i, j] = int(amount)
 
     return simulations, burned_amounts
 

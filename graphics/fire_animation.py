@@ -67,21 +67,23 @@ def read_fire() -> Tuple[int, int, List[List[Tuple[int, int]]]]:
     1 2
     1 1
     """
-    _, _, width, height = input().split()
-    width, height = int(width), int(height)
-    steps: List[List[Tuple[int, int]]] = []
-    while True:
-        try:
-            line: str = input()
-        except EOFError:
-            break
-        if line == "":
-            break
-        elif line[0:5] == "Step ":
-            steps.append([])
-        else:
-            x, y = line.split()
-            steps[-1].append((int(x), int(y)))
+    filename = "fire_animation_data.txt"
+    with open(filename, "r") as file:
+        _, _, width, height = file.readline().split()
+        width, height = int(width), int(height)
+        steps: List[List[Tuple[int, int]]] = []
+        while True:
+            try:
+                line: str = file.readline()
+            except EOFError:
+                break
+            if line == "":
+                break
+            elif line[0:5] == "Step ":
+                steps.append([])
+            else:
+                x, y = line.split()
+                steps[-1].append((int(x), int(y)))
     return width, height, steps
 
 

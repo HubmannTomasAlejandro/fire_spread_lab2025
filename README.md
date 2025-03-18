@@ -52,7 +52,7 @@ elevation ∈ ℝ
 2) Dados los parámetros, calcular la probabilidad de que cada celda se queme haciendo muchas simulaciones.
 
 3) Estimar una función que diga que tan realistas son los incendios producidos por cada combinación de parámetros, usando datos de incendios reales. Esto también haciendo muchas simulaciones.
-   
+
    Este de hecho es el objetivo de el código original que estaba hecho parcialmente en R.
 
 ## Uso
@@ -64,13 +64,13 @@ Con `make` se compila.
 Para generar una imagen de las probabilidades de quema de cada píxel:
 
 ```shell
-./graphics/burned_probabilities_data ./data/1999_27j_S | python3 ./graphics/draw_burned_probabilities.py 1999_27j_S_burned_probabilities.png
+./graphics/burned_probabilities_data ./data/1999_27j_S ; python3 ./graphics/draw_burned_probabilities.py 1999_27j_S_burned_probabilities.png
 ```
 
 Para generar una animación de un incendio:
 
 ```shell
-./graphics/fire_animation_data ./data/2000_8 | python3 ./graphics/fire_animation.py 2000_8_fire_animation.mp4
+./graphics/fire_animation_data ./data/2000_8 ; python3 ./graphics/fire_animation.py 2000_8_fire_animation.mp4
 ```
 
 ## Links
