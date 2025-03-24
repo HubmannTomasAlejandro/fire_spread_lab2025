@@ -1,9 +1,9 @@
 CXX = g++
 EXTRACXXFLAGS=
-CXXFLAGS = -Wall -Wextra -Werror $(EXTRACXXFLAGS)
+DEFINES=
+CXXFLAGS = -Wall -Wextra -Werror -fopenmp $(EXTRACXXFLAGS)
 INCLUDE = -I./src
-CXXCMD = $(CXX) $(CXXFLAGS) $(INCLUDE)
-
+CXXCMD = $(CXX) $(DEFINES) $(CXXFLAGS) $(INCLUDE)
 headers = $(wildcard ./src/*.hpp)
 sources = $(wildcard ./src/*.cpp)
 objects_names = $(sources:./src/%.cpp=%)

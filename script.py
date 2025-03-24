@@ -21,7 +21,10 @@ GCC_FLAGS_TO_TEST = {
     #12: "-march=native -ffast-math -O3",
     10: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
     11: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
-
+    12: "-ffast-math",
+    13: "-march=native -ffast-math -O1",
+    14: "-march=native -ffast-math -O2",
+    15: "-march=native -ffast-math -O3",
 }
 
 
@@ -163,7 +166,7 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
-
+"""
 stats = run_gcc_with_all_flags(code_file, data_file,1)
 print(stats)
 for i in range(len(stats)):
@@ -178,8 +181,8 @@ for i in range(len(stats)):
 """
 stats = run_with_different_amount_of_simulations(data_file, 1)
 with open("data.json", "w") as json_file:
-   json.dump(stats, json_file, indent=4)
-
+    json.dump(stats, json_file, indent=4)
+"""
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
     cells_per_micro_sc = stats[i]['cells_procesed_per_micro_sec']
@@ -200,7 +203,7 @@ df["flag"] = df["flag"].astype(str)
 # Identificar las demás métricas a graficar y su unidad de medición
 metrics = ['instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
 units = {
-    'instructions': '',   
+    'instructions': '',
     'branches': '',
     'time_elapsed': 's',
     "cells_procesed_per_micro_sec": 'µs/cell',
@@ -213,14 +216,14 @@ units = {
 
 for metric in metrics:
     plt.figure(figsize=(10, 6))
-    ax = sns.barplot(x="flag", y=metric, data=df,color='mediumturquoise') 
+    ax = sns.barplot(x="flag", y=metric, data=df,color='mediumturquoise')
 
     # Agregar anotaciones en cada barra con formato en notación científica
     for container in ax.containers:
         # Crear etiquetas formateadas con notación científica y la unidad correspondiente
         labels = [f"{bar.get_height():.2e} {units.get(metric, '')}" for bar in container]
         ax.bar_label(container, labels=labels, label_type='edge', padding=3)
-    
+
     plt.title(f"Comparación de {metric} por Flag")
     plt.xlabel("Flag de Optimización")
     # Agregar la unidad en la etiqueta del eje y

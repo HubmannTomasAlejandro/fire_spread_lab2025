@@ -11,8 +11,9 @@
 #define ELEVATION_MEAN 1163.3
 #define ELEVATION_SD 399.5
 #define UPPER_LIMIT 0.5
+#ifndef SIMULATIONS
 #define SIMULATIONS 100
-
+#endif
 int main(int argc, char* argv[]) {
   try {
 
