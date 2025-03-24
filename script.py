@@ -4,31 +4,43 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import re
+import json
 
 GCC_FLAGS_TO_TEST = {
-    1: "-O0",
-    2: "-O1",
-    3: "-O2",
-    4: "-O3",
-    5: "-O1 -march=native",  # Optimización básica y para la arquitectura local
-    6: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
-    7: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
+    0: "-O0",
+    1: "-O1",
+    2: "-O2",
+    3: "-O3",
+    #4: "-ffast-math",
+    #6: "-march=native -O0",
+    7: "-march=native -O1", # Optimización básica y para la arquitectura local
+    8: "-march=native -O2",
+    9: "-march=native -O3",
+    #10: "-march=native -ffast-math -O1",
+    #11: "-march=native -ffast-math -O2",
+    #12: "-march=native -ffast-math -O3",
+    10: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
+    11: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
 
 }
 
+
 DATA_TO_USE = {
-    5: ("./data/2005_26", 52 * 49),
     1: ("./data/1999_27j_S", 1157 * 1282),
     2: ("./data/1999_28", 334 * 282),
     3: ("./data/2000_8", 88 * 91),
     4: ("./data/2005_6", 119 * 119),
+    5: ("./data/2005_26", 52 * 49),
     6: ("./data/2008", 88 * 91),
     7: ("./data/2009_3", 117 * 136),
     8: ("./data/2011_19E", 218 * 223),
     9: ("./data/2011_19W", 125 * 105),
-    10: ("./data/2015_50", 2917 * 3577),
-    11: ("./data/2021_865", 1961 * 2395),
+    10: ("./data/2015_50", 2917 * 3577), #1
+    11: ("./data/2021_865", 1961 * 2395), #2
 }
+
+VALUES_TO_MINIMIZE = ["cycles", "branch_misses", "time_elapsed", "user_time", "sys_time"]
+VALUES_TO_MAXIMIZE = ["insn_per_cycle"]
 
 
 def parse_perf_output(perf_output: str) -> dict:
@@ -39,53 +51,50 @@ def parse_perf_output(perf_output: str) -> dict:
 
     # Define regex patterns for extracting metrics
     patterns = {
-        "task_clock": r"([\d,]+) msec task-clock",
-        "context_switches": r"([\d,]+) +context-switches",
-        "cpu_migrations": r"([\d,]+) +cpu-migrations",
-        "page_faults": r"([\d,]+) +page-faults",
+        "cells_procesed_per_micro_sec": r"cells_burned_per_micro_sec:\s*([\d\.]+)",
         "cycles": r"([\d,]+) +cycles",
-        "stalled_cycles_frontend": r"([\d,]+) +stalled-cycles-frontend",
-        "instructions": r"([\d,]+) +instructions",
         "insn_per_cycle": r"([\d,.]+) +insn per cycle",
         "branches": r"([\d,]+) +branches",
         "branch_misses": r"([\d,]+) +branch-misses",
         "time_elapsed": r"([\d,.]+) seconds time elapsed",
         "user_time": r"([\d,.]+) seconds user",
         "sys_time": r"([\d,.]+) seconds sys",
+        "instructions": r"([\d,]+) +instructions",
     }
 
     # Convert matches into dictionary entries
     for key, pattern in patterns.items():
         match = re.search(pattern, perf_output)
         if match:
-            value = match.group(1).replace(",", "")  # Remove commas from numbers
+            value = match.group(1).replace(",", "")  # Remove points from numbers
             perf_data[key] = float(value) if "." in value else int(value)
 
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 1) -> list:
+def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str="g++") -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
-        #subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS=\"{flags}\"", shell=True)
+        subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
-            print(result)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
                 perf_stats = last_value.copy()
             else:
                 for key, value in last_value.items():
                     if key in perf_stats:
-                        perf_stats[key] += value  # Add the current value to the sum
+                        if key in VALUES_TO_MINIMIZE:
+                            perf_stats[key] = min(perf_stats[key], value)
+                        elif key in VALUES_TO_MAXIMIZE:
+                            perf_stats[key] = max(perf_stats[key], value)
+                        else:
+                            perf_stats[key] = value  # Add the current value to the sum
                     else:
                         perf_stats[key] = value  # If the key doesn't exist, just set it
-        # Average the statistics by dividing the accumulated sum by the number of tries
-        for key in perf_stats:
-            perf_stats[key] /= amount_of_tries
-
+            # Average the statistics by dividing the accumulated sum by the number of tries
+        #print(perf_stats)
         perf_stats.update({"flag": flags})
         stats.append(perf_stats.copy())
     return stats
@@ -95,7 +104,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     flags= "-O3"
     for data_id, data in DATA_TO_USE.items():
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
         perf_stats = {}
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
@@ -107,13 +116,38 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
                     perf_stats[key] += value  # Add the current value to the sum
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
-
         # Average the statistics by dividing the accumulated sum by the number of tries
-        for key in perf_stats:
-            perf_stats[key] /= amount_of_tries
+        #print(perf_stats)
         perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1]})
         stats.append(perf_stats.copy())
     return stats
+
+def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) -> list:
+    code_file = "./graphics/burned_probabilities_data"
+    stats = []
+    flags= "-O3"
+    amount_of_sims = [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
+    for sim_amount in amount_of_sims:
+        subprocess.run("make clean", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{flags}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
+        for k in range(36):
+            perf_stats = {}
+            result = subprocess.run(f"perf stat ./{code_file} {data}", shell=True, stderr=subprocess.PIPE, text=True)
+            last_value =  parse_perf_output(result.stderr)
+            if not perf_stats:
+                perf_stats = last_value.copy()
+            for key, value in last_value.items():
+                if key in perf_stats:
+                    perf_stats[key] += value  # Add the current value to the sum
+                else:
+                    perf_stats[key] = value  # If the key doesn't exist, just set it
+            # Average the statistics by dividing the accumulated sum by the number of tries
+            #print(perf_stats)
+            perf_stats.update({"data_name": data, "simulations": sim_amount})
+
+            stats.append(perf_stats.copy())
+    return stats
+
 
 code_file = "./graphics/burned_probabilities_data"
 data_file = "./data/1999_27j_S"
@@ -130,16 +164,33 @@ for i in range(len(stats)):
     print("****************************************************************************************\n")
 """
 
-stats = run_gcc_with_all_flags(code_file, data_file, 5)
+stats = run_gcc_with_all_flags(code_file, data_file,1)
+print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
-    instructions = stats[i]['instructions']
+    instructions = stats[i]['insn_per_cycle']
     flag = stats[i]['flag']
     print("\n****************************************************************************************")
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 
+"""
+stats = run_with_different_amount_of_simulations(data_file, 1)
+with open("data.json", "w") as json_file:
+   json.dump(stats, json_file, indent=4)
+
+for i in range(len(stats)):
+    time_elapsed = stats[i]['time_elapsed']
+    cells_per_micro_sc = stats[i]['cells_procesed_per_micro_sec']
+    flag = stats[i]['simulations']
+    print("\n****************************************************************************************")
+    print(f"Time elapsed: {time_elapsed} seconds with {flag} simulations")
+    print(f"Cells processed per micro second: {cells_per_micro_sc}")
+    print("****************************************************************************************\n")
+
+
+"""
 
 df = pd.DataFrame(stats)
 
@@ -147,11 +198,17 @@ df = pd.DataFrame(stats)
 df["flag"] = df["flag"].astype(str)
 
 # Identificar las demás métricas a graficar y su unidad de medición
-metrics = ['instructions', 'branches','time_elapsed']
+metrics = ['instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
 units = {
-    'instructions': 'inst',   # O la unidad que corresponda según perf_stat
-    'branches': 'branch',
-    'time_elapsed': 's'
+    'instructions': '',   
+    'branches': '',
+    'time_elapsed': 's',
+    "cells_procesed_per_micro_sec": 'µs/cell',
+    "cycles": '',
+    "insn_per_cycle": 'insn/cycle',
+    "branch_misses": '',
+    "user_time": 's',
+    "sys_time": 's',
 }
 
 for metric in metrics:
