@@ -1,6 +1,7 @@
 #include "many_simulations.hpp"
 
 #include <cmath>
+#include <omp.h> // omp_get_wtime()
 
 Matrix<size_t> burned_amounts_per_cell(
     const Landscape& landscape, const std::vector<std::pair<size_t, size_t>>& ignition_cells,
@@ -9,6 +10,8 @@ Matrix<size_t> burned_amounts_per_cell(
 ) {
 
   Matrix<size_t> burned_amounts(landscape.width, landscape.height);
+
+  double t = omp_get_wtime();
 
   for (size_t i = 0; i < n_replicates; i++) {
     Fire fire = simulate_fire(
@@ -23,6 +26,11 @@ Matrix<size_t> burned_amounts_per_cell(
       }
     }
   }
+
+  printf("\n\n***********************************************************\n");
+  printf("cells_burned_per_micro_sec: %lf\n",
+    (landscape.width * landscape.height * n_replicates) / ((omp_get_wtime() - t) * 1e6));
+
 
   return burned_amounts;
 }

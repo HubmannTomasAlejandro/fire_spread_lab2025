@@ -19,11 +19,11 @@ GCC_FLAGS_TO_TEST = {
 }
 
 DATA_TO_USE = {
-    5: ("./data/2005_26", 52 * 49),
     1: ("./data/1999_27j_S", 1157 * 1282),
     2: ("./data/1999_28", 334 * 282),
     3: ("./data/2000_8", 88 * 91),
     4: ("./data/2005_6", 119 * 119),
+    5: ("./data/2005_26", 52 * 49),
     6: ("./data/2008", 88 * 91),
     7: ("./data/2009_3", 117 * 136),
     8: ("./data/2011_19E", 218 * 223),
@@ -57,24 +57,20 @@ def parse_perf_output(perf_output: str) -> dict:
     for key, pattern in patterns.items():
         match = re.search(pattern, perf_output)
         if match:
-            match = match.group(1).replace(".", "")  # Remove points from numbers
-            value = match.replace(",", ".")  # Remove commas from numbers
+            value = match.group(1).replace(",", "")  # Remove points from numbers
             perf_data[key] = float(value) if "." in value else int(value)
 
-    print(perf_data)
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10) -> list:
+def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str="g++") -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS='{flags}'", shell=True)
+        subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
-            if not last_value:
-                import ipdb; ipdb.set_trace()
             if not perf_stats:
                 perf_stats = last_value.copy()
             else:
@@ -99,7 +95,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     flags= "-O3"
     for data_id, data in DATA_TO_USE.items():
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
         perf_stats = {}
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
@@ -117,9 +113,33 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
         stats.append(perf_stats.copy())
     return stats
 
-code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/1999_28"
+def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) -> list:
+    code_file = "./graphics/burned_probabilities_data"
+    stats = []
+    flags= "-O3"
+    amount_of_sims = [128, 256, 512, 1024, 2048, 4096, 8192, 16384]
+    for sim_amount in amount_of_sims:
+        subprocess.run("make clean", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{flags}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
+        perf_stats = {}
+        for n in range(amount_of_tries):
+            result = subprocess.run(f"perf stat ./{code_file} {data}", shell=True, stderr=subprocess.PIPE, text=True)
+            last_value =  parse_perf_output(result.stderr)
+            if not perf_stats:
+                perf_stats = last_value.copy()
+            for key, value in last_value.items():
+                if key in perf_stats:
+                    perf_stats[key] += value  # Add the current value to the sum
+                else:
+                    perf_stats[key] = value  # If the key doesn't exist, just set it
+        # Average the statistics by dividing the accumulated sum by the number of tries
+        print(perf_stats)
+        perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1], "simulations": sim_amount})
+        stats.append(perf_stats.copy())
+    return stats
 
+code_file = "./graphics/burned_probabilities_data"
+data_file = "./data/2005_26"
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
@@ -132,8 +152,7 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
-
-stats = run_gcc_with_all_flags(code_file, data_file)
+stats = run_gcc_with_all_flags(code_file, data_file,1 ,"clang++")
 print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
@@ -143,3 +162,7 @@ for i in range(len(stats)):
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
+"""
+
+stats = run_with_different_amount_of_simulations(data_file, 1)
+"""
