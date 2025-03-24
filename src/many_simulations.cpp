@@ -27,8 +27,7 @@ Matrix<size_t> burned_amounts_per_cell(
     }
   }
 
-  printf("\n\n***********************************************************\n");
-  printf("cells_burned_per_micro_sec: %lf\n",
+  fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
     (landscape.width * landscape.height * n_replicates) / ((omp_get_wtime() - t) * 1e6));
 
 

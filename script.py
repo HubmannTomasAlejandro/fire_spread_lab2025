@@ -41,9 +41,12 @@ def parse_perf_output(perf_output: str) -> dict:
     Parses the output from `perf stat` and extracts performance metrics into a dictionary.
     """
     perf_data = {}
+    print("\n\n\n\n")
 
     # Define regex patterns for extracting metrics
+    print(perf_output)
     patterns = {
+        "cells_burned_per_micro_sec": r"cells_burned_per_micro_sec:\s*([\d\.]+)",
         "cycles": r"([\d,]+) +cycles",
         "insn_per_cycle": r"([\d,.]+) +insn per cycle",
         "branches": r"([\d,]+) +branches",
@@ -152,7 +155,7 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
-stats = run_gcc_with_all_flags(code_file, data_file,1 ,"clang++")
+stats = run_gcc_with_all_flags(code_file, data_file,1)
 print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
@@ -166,3 +169,4 @@ for i in range(len(stats)):
 
 stats = run_with_different_amount_of_simulations(data_file, 1)
 """
+
