@@ -4,16 +4,19 @@ import matplotlib.pyplot as plt
 import re
 
 GCC_FLAGS_TO_TEST = {
+    0: "-O0",
     1: "-O1",
     2: "-O2",
     3: "-O3",
-    4: "flto",
-    5: "-march=native",
-    6: "-fprofile-generate",
-    7: "-fprofile-use",
-    8: "-g",
-    9: "-flop-block",
-    10: "-funroll-loops",
+    4: "-ffast-math",
+    5: "-funroll-loops",
+    6: "-march=native",
+    7: "-march=native -O1",
+    8: "-march=native -O2",
+    9: "-march=native -O3",
+    10: "-march=native -ffast-math -01",
+    11: "-march=native -ffast-math -O2",
+    12: "-march=native -ffast-math -O3",
 }
 
 DATA_TO_USE = {
@@ -39,13 +42,7 @@ def parse_perf_output(perf_output: str) -> dict:
 
     # Define regex patterns for extracting metrics
     patterns = {
-        "task_clock": r"([\d,]+) msec task-clock",
-        "context_switches": r"([\d,]+) +context-switches",
-        "cpu_migrations": r"([\d,]+) +cpu-migrations",
-        "page_faults": r"([\d,]+) +page-faults",
         "cycles": r"([\d,]+) +cycles",
-        "stalled_cycles_frontend": r"([\d,]+) +stalled-cycles-frontend",
-        "instructions": r"([\d,]+) +instructions",
         "insn_per_cycle": r"([\d,.]+) +insn per cycle",
         "branches": r"([\d,]+) +branches",
         "branch_misses": r"([\d,]+) +branch-misses",
@@ -58,12 +55,14 @@ def parse_perf_output(perf_output: str) -> dict:
     for key, pattern in patterns.items():
         match = re.search(pattern, perf_output)
         if match:
-            value = match.group(1).replace(",", "")  # Remove commas from numbers
+            match = match.group(1).replace(".", "")  # Remove points from numbers
+            value = match.replace(",", ".")  # Remove commas from numbers
             perf_data[key] = float(value) if "." in value else int(value)
 
+    print(perf_data)
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 1) -> list:
+def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 2) -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
@@ -81,9 +80,7 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 1) -> list
                     else:
                         perf_stats[key] = value  # If the key doesn't exist, just set it
         # Average the statistics by dividing the accumulated sum by the number of tries
-        for key in perf_stats:
-            perf_stats[key] /= amount_of_tries
-
+        print(perf_stats)
         perf_stats.update({"flag": flags})
         stats.append(perf_stats.copy())
     return stats
@@ -105,16 +102,15 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
                     perf_stats[key] += value  # Add the current value to the sum
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
-
         # Average the statistics by dividing the accumulated sum by the number of tries
-        for key in perf_stats:
-            perf_stats[key] /= amount_of_tries
+        print(perf_stats)
         perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1]})
         stats.append(perf_stats.copy())
     return stats
 
 code_file = "./graphics/burned_probabilities_data"
 data_file = "./data/1999_27j_S"
+
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
@@ -129,9 +125,10 @@ for i in range(len(stats)):
 """
 
 stats = run_gcc_with_all_flags(code_file, data_file, 1)
+print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
-    instructions = stats[i]['instructions']
+    instructions = stats[i]['insn_per_cycle']
     flag = stats[i]['flag']
     print("\n****************************************************************************************")
     print(f"Flag: {flag}")
