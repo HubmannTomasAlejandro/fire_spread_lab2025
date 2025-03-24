@@ -9,12 +9,11 @@ GCC_FLAGS_TO_TEST = {
     2: "-O2",
     3: "-O3",
     4: "-ffast-math",
-    5: "-funroll-loops",
-    6: "-march=native",
+    6: "-march=native -O0",
     7: "-march=native -O1",
     8: "-march=native -O2",
     9: "-march=native -O3",
-    10: "-march=native -ffast-math -01",
+    10: "-march=native -ffast-math -O1",
     11: "-march=native -ffast-math -O2",
     12: "-march=native -ffast-math -O3",
 }
@@ -29,9 +28,12 @@ DATA_TO_USE = {
     7: ("./data/2009_3", 117 * 136),
     8: ("./data/2011_19E", 218 * 223),
     9: ("./data/2011_19W", 125 * 105),
-    10: ("./data/2015_50", 2917 * 3577), #no entra en cache
-    11: ("./data/2021_865", 1961 * 2395), #no entra en cache
+    10: ("./data/2015_50", 2917 * 3577), #1
+    11: ("./data/2021_865", 1961 * 2395), #2
 }
+
+VALUES_TO_MINIMIZE = ["cycles", "branch_misses", "time_elapsed", "user_time", "sys_time"]
+VALUES_TO_MAXIMIZE = ["insn_per_cycle"]
 
 
 def parse_perf_output(perf_output: str) -> dict:
@@ -62,24 +64,31 @@ def parse_perf_output(perf_output: str) -> dict:
     print(perf_data)
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 2) -> list:
+def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10) -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{flags}'", shell=True)
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
+            if not last_value:
+                import ipdb; ipdb.set_trace()
             if not perf_stats:
                 perf_stats = last_value.copy()
             else:
                 for key, value in last_value.items():
                     if key in perf_stats:
-                        perf_stats[key] += value  # Add the current value to the sum
+                        if key in VALUES_TO_MINIMIZE:
+                            perf_stats[key] = min(perf_stats[key], value)
+                        elif key in VALUES_TO_MAXIMIZE:
+                            perf_stats[key] = max(perf_stats[key], value)
+                        else:
+                            perf_stats[key] = value  # Add the current value to the sum
                     else:
                         perf_stats[key] = value  # If the key doesn't exist, just set it
-        # Average the statistics by dividing the accumulated sum by the number of tries
+            # Average the statistics by dividing the accumulated sum by the number of tries
         print(perf_stats)
         perf_stats.update({"flag": flags})
         stats.append(perf_stats.copy())
@@ -109,7 +118,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     return stats
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/2015_50"
+data_file = "./data/1999_28"
 
 """
 stats = run_all_cases(code_file, 1)
@@ -124,7 +133,7 @@ for i in range(len(stats)):
     print("****************************************************************************************\n")
 """
 
-stats = run_gcc_with_all_flags(code_file, data_file, 1)
+stats = run_gcc_with_all_flags(code_file, data_file)
 print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
