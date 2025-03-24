@@ -228,4 +228,5 @@ for metric in metrics:
     # Rotar las etiquetas del eje x para mayor legibilidad
     plt.xticks(rotation=45)
     plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
+    plt.savefig(f'grafico_{metric}.png', dpi=300)
     plt.show()
