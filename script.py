@@ -1,19 +1,19 @@
 import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import re
 
 GCC_FLAGS_TO_TEST = {
-    1: "-O1",
-    2: "-O2",
-    3: "-O3",
-    4: "flto",
-    5: "-march=native",
-    6: "-fprofile-generate",
-    7: "-fprofile-use",
-    8: "-g",
-    9: "-flop-block",
-    10: "-funroll-loops",
+    1: "-O0",
+    2: "-O1",
+    3: "-O2",
+    4: "-O3",
+    5: "-O1 -march=native",  # Optimización básica y para la arquitectura local
+    6: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
+    7: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
+
 }
 
 DATA_TO_USE = {
@@ -68,9 +68,11 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries:int = 1) -> list
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
+        #subprocess.run(f"make EXTRACXXFLAGS={flags}", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS=\"{flags}\"", shell=True)
         for n in range(amount_of_tries):
             result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
+            print(result)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
                 perf_stats = last_value.copy()
@@ -128,7 +130,7 @@ for i in range(len(stats)):
     print("****************************************************************************************\n")
 """
 
-stats = run_gcc_with_all_flags(code_file, data_file, 1)
+stats = run_gcc_with_all_flags(code_file, data_file, 5)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
     instructions = stats[i]['instructions']
@@ -137,3 +139,36 @@ for i in range(len(stats)):
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
+
+
+df = pd.DataFrame(stats)
+
+# Convertir la columna de flags a string para mejor visualización en los gráficos
+df["flag"] = df["flag"].astype(str)
+
+# Identificar las demás métricas a graficar y su unidad de medición
+metrics = ['instructions', 'branches','time_elapsed']
+units = {
+    'instructions': 'inst',   # O la unidad que corresponda según perf_stat
+    'branches': 'branch',
+    'time_elapsed': 's'
+}
+
+for metric in metrics:
+    plt.figure(figsize=(10, 6))
+    ax = sns.barplot(x="flag", y=metric, data=df,color='mediumturquoise') 
+
+    # Agregar anotaciones en cada barra con formato en notación científica
+    for container in ax.containers:
+        # Crear etiquetas formateadas con notación científica y la unidad correspondiente
+        labels = [f"{bar.get_height():.2e} {units.get(metric, '')}" for bar in container]
+        ax.bar_label(container, labels=labels, label_type='edge', padding=3)
+    
+    plt.title(f"Comparación de {metric} por Flag")
+    plt.xlabel("Flag de Optimización")
+    # Agregar la unidad en la etiqueta del eje y
+    plt.ylabel(f"{metric} ({units.get(metric, '')})")
+    # Rotar las etiquetas del eje x para mayor legibilidad
+    plt.xticks(rotation=45)
+    plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
+    plt.show()
