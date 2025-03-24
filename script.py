@@ -29,8 +29,8 @@ DATA_TO_USE = {
     7: ("./data/2009_3", 117 * 136),
     8: ("./data/2011_19E", 218 * 223),
     9: ("./data/2011_19W", 125 * 105),
-    10: ("./data/2015_50", 2917 * 3577),
-    11: ("./data/2021_865", 1961 * 2395),
+    10: ("./data/2015_50", 2917 * 3577), #no entra en cache
+    11: ("./data/2021_865", 1961 * 2395), #no entra en cache
 }
 
 
@@ -109,7 +109,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     return stats
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/1999_27j_S"
+data_file = "./data/2015_50"
 
 """
 stats = run_all_cases(code_file, 1)
