@@ -143,7 +143,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/2005_26"
+data_file = "./data/1999_27j_S"
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
