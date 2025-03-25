@@ -129,7 +129,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
     code_file = "./graphics/burned_probabilities_data"
     stats = []
     flags= "-O3"
-    amount_of_sims = [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
+    amount_of_sims = [128, 256, 512, 1024, 2048]
     for sim_amount in amount_of_sims:
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make EXTRACXXFLAGS='{flags}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
@@ -153,7 +153,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/1999_27j_S"
+data_file = "./data/2005_6"
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
@@ -197,42 +197,49 @@ for i in range(len(stats)):
 """
 
 stats = run_gcc_with_all_flags(code_file, data_file,1)
-
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
 # Identificar las demás métricas a graficar y su unidad de medición
-metrics = ["cells_procesed_per_micro_sec",'instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
-units = {
-    'instructions': '',
-    'branches': '',
-    'time_elapsed': 's',
-    "cells_procesed_per_micro_sec": 'µs/cell',
-    "cycles": '',
-    "insn_per_cycle": 'insn/cycle',
-    "branch_misses": '',
-    "user_time": 's',
-    "sys_time": 's',
-}
+def draw_grafic_for_flags(df:pd.DataFrame):
+    metrics = ["cells_procesed_per_micro_sec",'instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
+    units = {
+        'instructions': '',
+        'branches': '',
+        'time_elapsed': 's',
+        "cells_procesed_per_micro_sec": 'µs/cell',
+        "cycles": '',
+        "insn_per_cycle": 'insn/cycle',
+        "branch_misses": '',
+        "user_time": 's',
+        "sys_time": 's',
+    }
+    draw_generic_grafic(df, metrics,units ,"flag")
 
-for metric in metrics:
-    plt.figure(figsize=(18, 6))
-    ax = sns.barplot(x="flag", y=metric, data=df,color='mediumturquoise')
+def draw_generic_grafic(df:pd.DataFrame, metrics , units:dict, x_label:str):
+    for metric in metrics:
+        plt.figure(figsize=(18, 6))
+        ax = sns.barplot(x=x_label, y=metric, data=df,color='mediumturquoise')
 
-    # Agregar anotaciones en cada barra con formato en notación científica
-    for container in ax.containers:
-        # Crear etiquetas formateadas con notación científica y la unidad correspondiente
-        labels = [f"{bar.get_height():.2e} {units.get(metric, '')}" for bar in container]
-        ax.bar_label(container, labels=labels, label_type='edge', padding=3)
+        # Agregar anotaciones en cada barra con formato en notación científica
+        for container in ax.containers:
+            # Crear etiquetas formateadas con notación científica y la unidad correspondiente
+            if metric == "cells_procesed_per_micro_sec":
+                labels = [f"{bar.get_height():.2f} {units.get(metric, '')}" for bar in container]
+            else:
+                labels = [f"{bar.get_height():.2e} {units.get(metric, '')}" for bar in container]
+            ax.bar_label(container, labels=labels, label_type='edge', padding=3)
 
-    plt.title(f"Comparación de {metric} por Flag")
-    plt.xlabel("Flag de Optimización")
-    # Agregar la unidad en la etiqueta del eje y
-    plt.ylabel(f"{metric} ({units.get(metric, '')})")
-    # Rotar las etiquetas del eje x para mayor legibilidad
-    plt.xticks(rotation=45)
-    plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
-    #plt.savefig(f'grafico_{metric}.png', dpi=300)
-    plt.show()
+        plt.title(f"Comparación de {metric} por Flag")
+        plt.xlabel("Flag de Optimización")
+        # Agregar la unidad en la etiqueta del eje y
+        plt.ylabel(f"{metric} ({units.get(metric, '')})")
+        # Rotar las etiquetas del eje x para mayor legibilidad
+        plt.xticks(rotation=45)
+        plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
+        #plt.savefig(f'grafico_{metric}.png', dpi=300)
+        plt.show()
+
+draw_grafic_for_flags(df)
