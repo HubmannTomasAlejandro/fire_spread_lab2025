@@ -97,7 +97,7 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str
                     else:
                         perf_stats[key] = value  # If the key doesn't exist, just set it
             # Average the statistics by dividing the accumulated sum by the number of tries
-        #print(perf_stats)
+        print(perf_stats)
         perf_stats.update({"flag": flags})
         stats.append(perf_stats.copy())
     return stats
@@ -120,7 +120,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
         # Average the statistics by dividing the accumulated sum by the number of tries
-        #print(perf_stats)
+        print(perf_stats)
         perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1]})
         stats.append(perf_stats.copy())
     return stats
@@ -166,9 +166,10 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
+
 """
 stats = run_gcc_with_all_flags(code_file, data_file,1)
-print(stats)
+# print(stats)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
     instructions = stats[i]['insn_per_cycle']
@@ -177,12 +178,12 @@ for i in range(len(stats)):
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
-
+"""
 """
 stats = run_with_different_amount_of_simulations(data_file, 1)
+
 with open("data.json", "w") as json_file:
     json.dump(stats, json_file, indent=4)
-"""
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
     cells_per_micro_sc = stats[i]['cells_procesed_per_micro_sec']
@@ -195,13 +196,15 @@ for i in range(len(stats)):
 
 """
 
+stats = run_gcc_with_all_flags(code_file, data_file,1)
+
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
 # Identificar las demás métricas a graficar y su unidad de medición
-metrics = ['instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
+metrics = ["cells_procesed_per_micro_sec",'instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
 units = {
     'instructions': '',
     'branches': '',
@@ -215,7 +218,7 @@ units = {
 }
 
 for metric in metrics:
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(18, 6))
     ax = sns.barplot(x="flag", y=metric, data=df,color='mediumturquoise')
 
     # Agregar anotaciones en cada barra con formato en notación científica
@@ -231,5 +234,5 @@ for metric in metrics:
     # Rotar las etiquetas del eje x para mayor legibilidad
     plt.xticks(rotation=45)
     plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
-    plt.savefig(f'grafico_{metric}.png', dpi=300)
+    #plt.savefig(f'grafico_{metric}.png', dpi=300)
     plt.show()
