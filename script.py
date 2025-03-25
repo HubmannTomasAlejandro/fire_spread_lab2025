@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import re
-import json
 
 GCC_FLAGS_TO_TEST = {
     0: "-O0",
@@ -34,12 +33,11 @@ DATA_TO_USE = {
     3: ("./data/2000_8", 88 * 91),
     4: ("./data/2005_6", 119 * 119),
     5: ("./data/2005_26", 52 * 49),
-    6: ("./data/2008", 88 * 91),
-    7: ("./data/2009_3", 117 * 136),
-    8: ("./data/2011_19E", 218 * 223),
-    9: ("./data/2011_19W", 125 * 105),
-    10: ("./data/2015_50", 2917 * 3577), #1
-    11: ("./data/2021_865", 1961 * 2395), #2
+    6: ("./data/2009_3", 117 * 136),
+    7: ("./data/2011_19E", 218 * 223),
+    8: ("./data/2011_19W", 125 * 105),
+    9: ("./data/2015_50", 2917 * 3577), #1
+    10: ("./data/2021_865", 1961 * 2395), #2
 }
 
 VALUES_TO_MINIMIZE = ["cycles", "branch_misses", "time_elapsed", "user_time", "sys_time"]
@@ -105,23 +103,34 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str
 def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     stats = []
     flags= "-O3"
+    subprocess.run("make clean", shell=True)
+    subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
     for data_id, data in DATA_TO_USE.items():
-        subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
+        print (f"Running data {data_id}, {data[0]}")
         perf_stats = {}
+        if data[1] > 1000000:
+            amount_of_tries = 5
+        else:
+            amount_of_tries = 30
         for n in range(amount_of_tries):
+            print(f"Try number {n}")
             result = subprocess.run(f"perf stat ./{code} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
                 perf_stats = last_value.copy()
             for key, value in last_value.items():
                 if key in perf_stats:
-                    perf_stats[key] += value  # Add the current value to the sum
+                    if key in VALUES_TO_MINIMIZE:
+                        perf_stats[key] = min(perf_stats[key], value)
+                    elif key in VALUES_TO_MAXIMIZE:
+                        perf_stats[key] = max(perf_stats[key], value)
+                    else:
+                        perf_stats[key] = value  # Add the current value to the sum
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
         # Average the statistics by dividing the accumulated sum by the number of tries
-        print(perf_stats)
         perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1]})
+        print(perf_stats)
         stats.append(perf_stats.copy())
     return stats
 
@@ -196,50 +205,12 @@ for i in range(len(stats)):
 
 """
 
-stats = run_gcc_with_all_flags(code_file, data_file,1)
+stats = run_all_cases(code_file, 1)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-# Identificar las demás métricas a graficar y su unidad de medición
-def draw_grafic_for_flags(df:pd.DataFrame):
-    metrics = ["cells_procesed_per_micro_sec",'instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
-    units = {
-        'instructions': '',
-        'branches': '',
-        'time_elapsed': 's',
-        "cells_procesed_per_micro_sec": 'µs/cell',
-        "cycles": '',
-        "insn_per_cycle": 'insn/cycle',
-        "branch_misses": '',
-        "user_time": 's',
-        "sys_time": 's',
-    }
-    draw_generic_grafic(df, metrics,units ,"flag")
+df.to_csv(f"csv_info/run_all_cases.csv", index=False)
 
-def draw_generic_grafic(df:pd.DataFrame, metrics , units:dict, x_label:str):
-    for metric in metrics:
-        plt.figure(figsize=(18, 6))
-        ax = sns.barplot(x=x_label, y=metric, data=df,color='mediumturquoise')
 
-        # Agregar anotaciones en cada barra con formato en notación científica
-        for container in ax.containers:
-            # Crear etiquetas formateadas con notación científica y la unidad correspondiente
-            if metric == "cells_procesed_per_micro_sec":
-                labels = [f"{bar.get_height():.2f} {units.get(metric, '')}" for bar in container]
-            else:
-                labels = [f"{bar.get_height():.2e} {units.get(metric, '')}" for bar in container]
-            ax.bar_label(container, labels=labels, label_type='edge', padding=3)
-
-        plt.title(f"Comparación de {metric} por Flag")
-        plt.xlabel("Flag de Optimización")
-        # Agregar la unidad en la etiqueta del eje y
-        plt.ylabel(f"{metric} ({units.get(metric, '')})")
-        # Rotar las etiquetas del eje x para mayor legibilidad
-        plt.xticks(rotation=45)
-        plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
-        #plt.savefig(f'grafico_{metric}.png', dpi=300)
-        plt.show()
-
-draw_grafic_for_flags(df)
