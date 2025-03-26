@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import re
+import json
 
 GCC_FLAGS_TO_TEST = {
     0: "-O0",
@@ -41,7 +42,7 @@ DATA_TO_USE = {
 }
 
 VALUES_TO_MINIMIZE = ["cycles", "branch_misses", "time_elapsed", "user_time", "sys_time"]
-VALUES_TO_MAXIMIZE = ["insn_per_cycle"]
+VALUES_TO_MAXIMIZE = ["insn_per_cycle", "cells_procesed_per_micro_sec"]
 
 
 def parse_perf_output(perf_output: str) -> dict:
@@ -142,7 +143,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
     for sim_amount in amount_of_sims:
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make EXTRACXXFLAGS='{flags}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
-        for k in range(36):
+        for k in range(6):
             perf_stats = {}
             result = subprocess.run(f"perf stat ./{code_file} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
@@ -162,7 +163,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/2005_6"
+data_file = "./data/2015_50"
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
@@ -188,10 +189,9 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
-"""
-stats = run_with_different_amount_of_simulations(data_file, 1)
+stats = run_with_different_amount_of_simulations(data_file, 30)
 
-with open("data.json", "w") as json_file:
+with open("csv_info/data_2015_50.json", "w") as json_file:
     json.dump(stats, json_file, indent=4)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
@@ -205,12 +205,14 @@ for i in range(len(stats)):
 
 """
 
-stats = run_all_cases(code_file, 1)
+stats = run_all_cases(code_file,30)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/prueba.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases.csv", index=False)
 
 
+
+"""
