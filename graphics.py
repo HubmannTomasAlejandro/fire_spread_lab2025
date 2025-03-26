@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 # pip install moviepy      (si no lo tienes instalado)
-from moviepy import ImageClip, TextClip, CompositeVideoClip, concatenate_videoclips
+from moviepy import ImageClip, CompositeVideoClip, concatenate_videoclips
+from moviepy.video.VideoClip import TextClip
 
 
 metrics = ["cells_procesed_per_micro_sec",'instructions','branches','time_elapsed',"cycles","insn_per_cycle","branch_misses", "user_time","sys_time",]
@@ -53,13 +54,15 @@ df = pd.read_csv(file_to_use)
 def video(labels, imagenes, video_name):
     clips = []
 
-    for img, titulo in zip(imagenes, titulos):
-        # Crea un clip a partir de la imagen. La duración se puede ajustar (ej. 3 segundos)
-        imagen_clip = ImageClip(img).set_duration(3)
+    for img, titulo in zip(imagenes, labels):
+        # Crea un clip a partir de la imagen con duración de 3 segundos
+        imagen_clip = ImageClip(img).with_duration(1)
         
-        # Crea un clip de texto para el título. Ajusta fuente, tamaño, color y posición según necesites.
-        texto_clip = TextClip(titulo, fontsize=50, color='white', font='Amiri-Bold')
-        texto_clip = texto_clip.set_duration(3).set_position(("center", "bottom"))
+        # Crea un clip de texto para el título con duración de 3 segundos y posición en el centro inferior.
+        # Se especifica method="caption" para evitar el conflicto con el parámetro font.
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
+        texto_clip = TextClip(font=font_path,text=titulo, font_size=25)
+        texto_clip = texto_clip.with_position(("center", "top")).with_duration(1)
         
         # Superpone el texto sobre la imagen
         clip_composite = CompositeVideoClip([imagen_clip, texto_clip])
@@ -68,18 +71,30 @@ def video(labels, imagenes, video_name):
     # Une todos los clips en un solo video
     video_final = concatenate_videoclips(clips, method="compose")
 
-    # Guarda el video en un archivo
+    # Guarda el video en un archivo MP4
     video_final.write_videofile(f"{video_name}.mp4", fps=24)
 
 
 
 # Lista de nombres de archivo de las imágenes
-imagenes = ["/home/yesi/Documentos/FAMAF/ComputacionParalela/fire_spread_lab2025/1999_27j_S_burned_probabilities_O0.png",
-            "/home/yesi/Documentos/FAMAF/ComputacionParalela/fire_spread_lab2025/1999_27j_S_burned_probabilities_O1.png",
-            "/home/yesi/Documentos/FAMAF/ComputacionParalela/fire_spread_lab2025/1999_27j_S_burned_probabilities_O2.png" 
-            "/home/yesi/Documentos/FAMAF/ComputacionParalela/fire_spread_lab2025/1999_27j_S_burned_probabilities_O3.png"]
+imagenes = ["./Graficos Lab1/1999_27j_S_burned_probabilities_O0.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_O1.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_O2.png", 
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_O3.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_4.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_5.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_6.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_7.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_8.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_9.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_10.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_11.png",
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_12.png"]
 
 # Lista de títulos para cada imagen (uno por ejecución, por ejemplo)
-titulos = ["-O0", "-O1", "-O2","-O3"]
+titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-march=native -O3",
+           "-O2 -march=native -flto","-O3 -march=native -flto -funroll-loops","-ffast-math",
+           "-march=native -ffast-math -O1","-march=native -ffast-math -O2",
+           "-march=native -ffast-math -O3"]
 
-video(titulos, imagenes, "video_prueba")
+video(titulos, imagenes, "video_flags")
