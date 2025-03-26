@@ -13,11 +13,12 @@ Matrix<size_t> burned_amounts_per_cell(
 
   double t = omp_get_wtime();
 
+  unsigned int amount_of_burned_cells = 0;
   for (size_t i = 0; i < n_replicates; i++) {
     Fire fire = simulate_fire(
         landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
     );
-
+    amount_of_burned_cells += fire.burned_ids.size();
     for (size_t col = 0; col < landscape.width; col++) {
       for (size_t row = 0; row < landscape.height; row++) {
         if (fire.burned_layer[{col, row}]) {
@@ -28,7 +29,7 @@ Matrix<size_t> burned_amounts_per_cell(
   }
 
   fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
-    (landscape.width * landscape.height * n_replicates) / ((omp_get_wtime() - t) * 1e6));
+    amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
 
 
   return burned_amounts;
