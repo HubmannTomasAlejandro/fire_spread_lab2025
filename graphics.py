@@ -46,10 +46,11 @@ def draw_generic_grafic(df:pd.DataFrame, x_label:str):
         #plt.savefig(f'grafico_{metric}.png', dpi=300)
         plt.show()
 
-file_to_use = "csv_info/data_all_flags_2005.csv"
+file_to_use = "csv_info/run_all_cases_tm.csv"
 
 df = pd.read_csv(file_to_use)
 #draw_grafic_for_flags(df)
+draw_generic_grafic(df,"size_of_matrix")
 
 def video(labels, imagenes, video_name):
     clips = []
@@ -57,13 +58,13 @@ def video(labels, imagenes, video_name):
     for img, titulo in zip(imagenes, labels):
         # Crea un clip a partir de la imagen con duración de 3 segundos
         imagen_clip = ImageClip(img).with_duration(1)
-        
+
         # Crea un clip de texto para el título con duración de 3 segundos y posición en el centro inferior.
         # Se especifica method="caption" para evitar el conflicto con el parámetro font.
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
         texto_clip = TextClip(font=font_path,text=titulo, font_size=25)
         texto_clip = texto_clip.with_position(("center", "top")).with_duration(1)
-        
+
         # Superpone el texto sobre la imagen
         clip_composite = CompositeVideoClip([imagen_clip, texto_clip])
         clips.append(clip_composite)
@@ -79,7 +80,7 @@ def video(labels, imagenes, video_name):
 # Lista de nombres de archivo de las imágenes
 imagenes = ["./Graficos Lab1/1999_27j_S_burned_probabilities_O0.png",
             "./Graficos Lab1/1999_27j_S_burned_probabilities_O1.png",
-            "./Graficos Lab1/1999_27j_S_burned_probabilities_O2.png", 
+            "./Graficos Lab1/1999_27j_S_burned_probabilities_O2.png",
             "./Graficos Lab1/1999_27j_S_burned_probabilities_O3.png",
             "./Graficos Lab1/1999_27j_S_burned_probabilities_4.png",
             "./Graficos Lab1/1999_27j_S_burned_probabilities_5.png",
@@ -97,4 +98,4 @@ titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-
            "-march=native -ffast-math -O1","-march=native -ffast-math -O2",
            "-march=native -ffast-math -O3"]
 
-video(titulos, imagenes, "video_flags")
+#video(titulos, imagenes, "video_flags")
