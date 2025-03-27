@@ -189,6 +189,8 @@ for i in range(len(stats)):
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
 """
+
+"""
 stats = run_with_different_amount_of_simulations(data_file, 30)
 
 with open("csv_info/data_2015_50.json", "w") as json_file:
@@ -211,8 +213,6 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases_float.csv", index=False)
 
 
-
-"""
