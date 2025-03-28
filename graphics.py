@@ -50,7 +50,7 @@ file_to_use = "csv_info/run_all_cases_tm.csv"
 
 df = pd.read_csv(file_to_use)
 #draw_grafic_for_flags(df)
-draw_generic_grafic(df,"size_of_matrix")
+#draw_generic_grafic(df,"size_of_matrix")
 
 def video(labels, imagenes, video_name):
     clips = []
@@ -99,3 +99,33 @@ titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-
            "-march=native -ffast-math -O3"]
 
 #video(titulos, imagenes, "video_flags")
+
+def float_double ():
+
+    # Cargar los archivos CSV
+    df_float = pd.read_csv("./csv_info/run_all_cases_float_2.csv")
+    df_double = pd.read_csv("./csv_info/run_all_cases_2.csv")
+
+    # Agregar una columna para identificar el tipo de dato
+    df_float["Tipo"] = "Float"
+    df_double["Tipo"] = "Double"
+
+    # Combinar los DataFrames
+    df = pd.concat([df_float, df_double])
+
+    # Graficar usando Seaborn
+    plt.figure(figsize=(18, 6))
+    sns.barplot(data=df, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=["salmon", "darkviolet"])
+
+    # Personalización del gráfico
+    plt.xlabel("Data Name")
+    plt.ylabel("cells_procesed_per_micro_sec (µs/cell)")
+    plt.title("Comparación de rendimiento: Float vs Double")
+    plt.legend(title="Tipo de dato")
+    plt.xticks(rotation=45)
+    plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
+
+    # Mostrar el gráfico
+    plt.show()
+
+float_double()
