@@ -11,20 +11,16 @@ GCC_FLAGS_TO_TEST = {
     1: "-O1",
     2: "-O2",
     3: "-O3",
-    #4: "-ffast-math",
-    #6: "-march=native -O0",
-    7: "-march=native -O1", # Optimización básica y para la arquitectura local
-    8: "-march=native -O2",
-    9: "-march=native -O3",
-    #10: "-march=native -ffast-math -O1",
-    #11: "-march=native -ffast-math -O2",
-    #12: "-march=native -ffast-math -O3",
-    10: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
-    11: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
-    12: "-ffast-math",
-    13: "-march=native -ffast-math -O1",
-    14: "-march=native -ffast-math -O2",
-    15: "-march=native -ffast-math -O3",
+    #5: "-march=native -O0",  # si lo necesitas, lo puedes habilitar
+    4: "-march=native -O1",
+    5: "-march=native -O2",
+    6: "-march=native -O3",
+    7: "-O2 -march=native -flto",
+    8: "-O3 -march=native -flto -funroll-loops",
+    9: "-ffast-math",
+    10: "-march=native -ffast-math -O1",
+    11: "-march=native -ffast-math -O2",
+    12: "-march=native -ffast-math -O3",
 }
 
 
@@ -73,7 +69,7 @@ def parse_perf_output(perf_output: str) -> dict:
 
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str="g++") -> list:
+def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str="clang++") -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
@@ -177,7 +173,7 @@ for i in range(len(stats)):
     print("****************************************************************************************\n")
 """
 
-"""
+
 stats = run_gcc_with_all_flags(code_file, data_file,1)
 # print(stats)
 for i in range(len(stats)):
@@ -188,6 +184,7 @@ for i in range(len(stats)):
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
+
 """
 stats = run_with_different_amount_of_simulations(data_file, 30)
 
@@ -202,7 +199,7 @@ for i in range(len(stats)):
     print(f"Cells processed per micro second: {cells_per_micro_sc}")
     print("****************************************************************************************\n")
 
-
+"""
 """
 
 stats = run_all_cases(code_file,30)
