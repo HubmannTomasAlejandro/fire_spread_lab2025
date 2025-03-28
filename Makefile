@@ -1,8 +1,8 @@
-CXX = g++
+CXX = clang++
 EXTRACXXFLAGS=
 DEFINES=
-CXXFLAGS = -Wall -Wextra -Werror -fopenmp $(EXTRACXXFLAGS)
-INCLUDE = -I./src
+CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fopenmp=libomp $(EXTRACXXFLAGS)
+INCLUDE = -I./src -I/usr/lib/gcc/x86_64-linux-gnu/11/include 
 CXXCMD = $(CXX) $(DEFINES) $(CXXFLAGS) $(INCLUDE)
 headers = $(wildcard ./src/*.hpp)
 sources = $(wildcard ./src/*.cpp)
