@@ -1,9 +1,11 @@
 CXX = clang++
-EXTRACXXFLAGS=
-DEFINES=
-CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fopenmp=libomp $(EXTRACXXFLAGS)
-INCLUDE = -I./src -I/usr/lib/gcc/x86_64-linux-gnu/11/include 
+EXTRACXXFLAGS =
+DEFINES =
+CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fopenmp
+LDFLAGS = -L/opt/AMD/aocc-compiler-4.0.0/lib -lomp
+INCLUDE = -I./src -I/usr/lib/gcc/x86_64-linux-gnu/11/include
 CXXCMD = $(CXX) $(DEFINES) $(CXXFLAGS) $(INCLUDE)
+
 headers = $(wildcard ./src/*.hpp)
 sources = $(wildcard ./src/*.cpp)
 objects_names = $(sources:./src/%.cpp=%)
@@ -17,7 +19,7 @@ all: $(mains)
 	$(CXXCMD) -c $< -o $@
 
 $(mains): %: %.cpp $(objects) $(headers)
-	$(CXXCMD) $< $(objects) -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $< $(objects) $(LDFLAGS) -o $@
 
 data.zip:
 	wget https://cs.famaf.unc.edu.ar/~nicolasw/data.zip
