@@ -91,7 +91,7 @@
  *          per array.
  */
 #ifndef STREAM_ARRAY_SIZE
-#define STREAM_ARRAY_SIZE 125000000
+#define STREAM_ARRAY_SIZE 134216996
 
 #endif
 

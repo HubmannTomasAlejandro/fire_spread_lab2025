@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
   gflops = gflops/duration*1.0e-6;
 
   FILE *fp;
-  fp = fopen("timeSGEMM.txt", "a");
+  fp = fopen("timeSGEMM_atom.txt", "a");
   fprintf(fp, "%dx%dx%d\t%lf s\t%lf MFLOPS\n", m, n, k, duration, gflops);
   fclose(fp);
 
