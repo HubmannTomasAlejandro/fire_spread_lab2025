@@ -12,15 +12,15 @@ GCC_FLAGS_TO_TEST = {
     2: "-O2",
     3: "-O3",
     #5: "-march=native -O0",  # si lo necesitas, lo puedes habilitar
-    4: "-march=native -O1",
-    5: "-march=native -O2",
-    6: "-march=native -O3",
-    7: "-O2 -march=native -flto",
-    8: "-O3 -march=native -flto -funroll-loops",
+#    4: "-march=znver3 -O1",
+#    5: "-march=znver3-O2",
+#    6: "-march=znver3 -O3",
+#    7: "-O2 -march=znver3 -flto",
+   8: "-O3  -flto -funroll-loops",
     9: "-ffast-math",
-    10: "-march=native -ffast-math -O1",
-    11: "-march=native -ffast-math -O2",
-    12: "-march=native -ffast-math -O3",
+   10: " -ffast-math -O1",
+    11: "-ffast-math -O2",
+    12: " -ffast-math -O3",
 }
 
 
@@ -76,6 +76,7 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
         for n in range(amount_of_tries):
+            print(f"Try number {n}")
             result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
@@ -159,7 +160,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 
 code_file = "./graphics/burned_probabilities_data"
-data_file = "./data/2015_50"
+data_file = "./data/1999_27j_S"
 """
 stats = run_all_cases(code_file, 1)
 for i in range(len(stats)):
@@ -174,8 +175,10 @@ for i in range(len(stats)):
 """
 
 
-stats = run_gcc_with_all_flags(code_file, data_file,1)
+stats = run_gcc_with_all_flags(code_file, data_file,2)
 # print(stats)
+df = pd.DataFrame(stats)
+df.to_csv(f"csv_info/run_gcc_with_all_flags_clang.csv", index=False)
 for i in range(len(stats)):
     time_elapsed = stats[i]['time_elapsed']
     instructions = stats[i]['insn_per_cycle']
@@ -184,6 +187,7 @@ for i in range(len(stats)):
     print(f"Flag: {flag}")
     print(f"Time elapsed: {time_elapsed} seconds")
     print("****************************************************************************************\n")
+
 
 """
 stats = run_with_different_amount_of_simulations(data_file, 30)

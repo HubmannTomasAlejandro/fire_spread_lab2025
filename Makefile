@@ -1,7 +1,7 @@
 CXX = clang++
 EXTRACXXFLAGS =
 DEFINES =
-CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fopenmp
+CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -fopenmp ${EXTRACXXFLAGS}
 LDFLAGS = -L/opt/AMD/aocc-compiler-4.0.0/lib -lomp
 INCLUDE = -I./src -I/usr/lib/gcc/x86_64-linux-gnu/11/include
 CXXCMD = $(CXX) $(DEFINES) $(CXXFLAGS) $(INCLUDE)
