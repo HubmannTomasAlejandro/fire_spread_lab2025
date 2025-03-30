@@ -122,7 +122,7 @@ def float_double ():
     plt.ylabel("cells_procesed_per_micro_sec (µs/cell)")
     plt.title("Comparación de rendimiento: Random XorShift32 vs Random Lib")
     plt.legend(title="Tipo de dato")
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=0)
     plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
 
     # Mostrar el gráfico
