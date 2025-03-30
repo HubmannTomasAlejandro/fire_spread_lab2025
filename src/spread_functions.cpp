@@ -4,9 +4,41 @@
 #include <cmath>
 #include <random>
 #include <vector>
+#include <cstdint>
+#include <iostream>
 
 #include "fires.hpp"
 #include "landscape.hpp"
+
+
+class XorShift32 {
+  private:
+      uint32_t state;
+
+  public:
+      explicit XorShift32(uint32_t seed) : state(seed) {
+          if (state == 0) {
+              state = 2463534242U; // Avoid all-zero state
+          }
+      }
+
+      uint32_t operator()() {
+          state ^= state << 13;
+          state ^= state >> 17;
+          state ^= state << 5;
+          return state;
+      }
+
+      uint32_t next() {
+          return (*this)();
+      }
+
+      double nextDouble() {
+          return static_cast<double>(next()) / static_cast<double>(UINT32_MAX);
+      }
+  };
+
+XorShift32 rng(12345);
 
 double spread_probability(
     const Cell& burning, const Cell& neighbour, SimulationParams params, double angle,
@@ -126,7 +158,7 @@ Fire simulate_fire(
         );
 
         // Burn with probability prob (Bernoulli)
-        bool burn = (double)rand() / (double)RAND_MAX < prob;
+        bool burn = rng.nextDouble() < prob;
 
         if (burn == 0)
           continue;

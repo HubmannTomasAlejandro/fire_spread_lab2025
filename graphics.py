@@ -103,7 +103,7 @@ titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-
 def float_double ():
 
     # Cargar los archivos CSV
-    df_float = pd.read_csv("./csv_info/run_all_cases_float_2.csv")
+    df_float = pd.read_csv("./csv_info/run_all_cases_random.csv")
     df_double = pd.read_csv("./csv_info/run_all_cases_2.csv")
 
     # Agregar una columna para identificar el tipo de dato

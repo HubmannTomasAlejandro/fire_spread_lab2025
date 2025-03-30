@@ -110,9 +110,9 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
         print (f"Running data {data_id}, {data[0]}")
         perf_stats = {}
         if data[1] > 1000000:
-            amount_of_tries = 10
+            amount_of_tries = 5
         else:
-            amount_of_tries = 100
+            amount_of_tries = 30
         for n in range(amount_of_tries):
             print(f"Try number {n}")
             result = subprocess.run(f"perf stat ./{code} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
@@ -213,6 +213,6 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases_2.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases_random.csv", index=False)
 
 
