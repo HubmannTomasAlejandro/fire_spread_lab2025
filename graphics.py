@@ -103,24 +103,24 @@ titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-
 def float_double ():
 
     # Cargar los archivos CSV
-    df_float = pd.read_csv("./csv_info/run_all_cases_random.csv")
-    df_double = pd.read_csv("./csv_info/run_all_cases_2.csv")
+    df_random_xshift = pd.read_csv("./csv_info/run_all_cases_random.csv")
+    df_random_lib = pd.read_csv("./csv_info/run_all_cases_2.csv")
 
     # Agregar una columna para identificar el tipo de dato
-    df_float["Tipo"] = "Float"
-    df_double["Tipo"] = "Double"
+    df_random_xshift["Tipo"] = "Random XorShift32"
+    df_random_lib["Tipo"] = "Random Lib"
 
     # Combinar los DataFrames
-    df = pd.concat([df_float, df_double])
+    df = pd.concat([df_random_xshift, df_random_lib])
 
     # Graficar usando Seaborn
     plt.figure(figsize=(18, 6))
-    sns.barplot(data=df, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=["salmon", "darkviolet"])
+    sns.barplot(data=df, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=["skyblue", "tomato"])
 
     # Personalización del gráfico
     plt.xlabel("Data Name")
     plt.ylabel("cells_procesed_per_micro_sec (µs/cell)")
-    plt.title("Comparación de rendimiento: Float vs Double")
+    plt.title("Comparación de rendimiento: Random XorShift32 vs Random Lib")
     plt.legend(title="Tipo de dato")
     plt.xticks(rotation=45)
     plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
