@@ -6,6 +6,8 @@ import seaborn as sns
 import re
 import json
 
+flags= "-Ofast -march=native -funroll-loops -flto"
+
 GCC_FLAGS_TO_TEST = {
     0: "-O0",
     1: "-O1",
@@ -103,7 +105,6 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str
 
 def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
     stats = []
-    flags= "-O3"
     subprocess.run("make clean", shell=True)
     subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
     for data_id, data in DATA_TO_USE.items():
@@ -138,7 +139,6 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
 def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) -> list:
     code_file = "./graphics/burned_probabilities_data"
     stats = []
-    flags= "-O3"
     amount_of_sims = [128, 256, 512, 1024, 2048]
     for sim_amount in amount_of_sims:
         subprocess.run("make clean", shell=True)
@@ -164,48 +164,6 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 code_file = "./graphics/burned_probabilities_data"
 data_file = "./data/2015_50"
-"""
-stats = run_all_cases(code_file, 1)
-for i in range(len(stats)):
-    time_elapsed = stats[i]['time_elapsed']
-    instructions = stats[i]['instructions']
-    data_name = stats[i]['data_name']
-    size_of_matrix = stats[i]['size_of_matrix']
-    print("\n****************************************************************************************")
-    print(f"Data_field: {data_name}, size of matrix: {size_of_matrix}")
-    print(f"Time elapsed: {time_elapsed} seconds")
-    print("****************************************************************************************\n")
-"""
-
-"""
-stats = run_gcc_with_all_flags(code_file, data_file,1)
-# print(stats)
-for i in range(len(stats)):
-    time_elapsed = stats[i]['time_elapsed']
-    instructions = stats[i]['insn_per_cycle']
-    flag = stats[i]['flag']
-    print("\n****************************************************************************************")
-    print(f"Flag: {flag}")
-    print(f"Time elapsed: {time_elapsed} seconds")
-    print("****************************************************************************************\n")
-"""
-
-"""
-stats = run_with_different_amount_of_simulations(data_file, 30)
-
-with open("csv_info/data_2015_50.json", "w") as json_file:
-    json.dump(stats, json_file, indent=4)
-for i in range(len(stats)):
-    time_elapsed = stats[i]['time_elapsed']
-    cells_per_micro_sc = stats[i]['cells_procesed_per_micro_sec']
-    flag = stats[i]['simulations']
-    print("\n****************************************************************************************")
-    print(f"Time elapsed: {time_elapsed} seconds with {flag} simulations")
-    print(f"Cells processed per micro second: {cells_per_micro_sc}")
-    print("****************************************************************************************\n")
-
-
-"""
 
 stats = run_all_cases(code_file,30)
 df = pd.DataFrame(stats)

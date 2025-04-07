@@ -33,23 +33,23 @@ class XorShift32 {
           return (*this)();
       }
 
-      double nextDouble() {
-          return static_cast<double>(next()) / static_cast<double>(UINT32_MAX);
+      float nextRandom() {
+          return static_cast<float>(next()) / static_cast<float>(UINT32_MAX);
       }
   };
 
 XorShift32 rng(12345);
 
-double spread_probability(
-    const Cell& burning, const Cell& neighbour, SimulationParams params, double angle,
-    double distance, double elevation_mean, double elevation_sd, double upper_limit = 1.0
+float spread_probability(
+    const Cell& burning, const Cell& neighbour, SimulationParams params, float angle,
+    float distance, float elevation_mean, float elevation_sd, float upper_limit = 1.0
 ) {
 
-  double slope_term = sin(atan((neighbour.elevation - burning.elevation) / distance));
-  double wind_term = cos(angle - burning.wind_direction);
-  double elev_term = (neighbour.elevation - elevation_mean) / elevation_sd;
+  float slope_term = sin(atan((neighbour.elevation - burning.elevation) / distance));
+  float wind_term = cos(angle - burning.wind_direction);
+  float elev_term = (neighbour.elevation - elevation_mean) / elevation_sd;
 
-  double linpred = params.independent_pred;
+  float linpred = params.independent_pred;
 
   if (neighbour.vegetation_type == SUBALPINE) {
     linpred += params.subalpine_pred;
@@ -65,15 +65,15 @@ double spread_probability(
   linpred += wind_term * params.wind_pred + elev_term * params.elevation_pred +
              slope_term * params.slope_pred;
 
-  double prob = upper_limit / (1 + exp(-linpred));
+  float prob = upper_limit / (1 + exp(-linpred));
 
   return prob;
 }
 
 Fire simulate_fire(
     const Landscape& landscape, const std::vector<std::pair<size_t, size_t>>& ignition_cells,
-    SimulationParams params, double distance, double elevation_mean, double elevation_sd,
-    double upper_limit = 1.0
+    SimulationParams params, float distance, float elevation_mean, float elevation_sd,
+    float upper_limit = 1.0
 ) {
 
   size_t n_row = landscape.height;
@@ -148,17 +148,17 @@ Fire simulate_fire(
         if (!burnable_cell)
           continue;
 
-        constexpr double angles[8] = { M_PI * 3 / 4, M_PI, M_PI * 5 / 4, M_PI / 2, M_PI * 3 / 2,
+        constexpr float angles[8] = { M_PI * 3 / 4, M_PI, M_PI * 5 / 4, M_PI / 2, M_PI * 3 / 2,
                                        M_PI / 4,     0,    M_PI * 7 / 4 };
 
         // simulate fire
-        double prob = spread_probability(
+        float prob = spread_probability(
             burning_cell, neighbour_cell, params, angles[n], distance, elevation_mean,
             elevation_sd, upper_limit
         );
 
         // Burn with probability prob (Bernoulli)
-        bool burn = rng.nextDouble() < prob;
+        bool burn = rng.nextRandom() < prob;
 
         if (burn == 0)
           continue;
