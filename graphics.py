@@ -126,10 +126,18 @@ def float_double (df_to_use, df_type, palette, title):
     plt.show()
 
 
-df_to_use = ["./csv_info/run_all_cases_opt_post_presentacion.csv",
+df_to_use = [
+             "./csv_info/run_all_cases.csv",
              "./csv_info/run_all_cases_random.csv",
-             "./csv_info/run_all_cases.csv"]
-df_type = ["opt_post_presentacion", "end_lab1", "only_flags", "without_optimization"]
+            "./csv_info/run_all_cases_opt_post_presentacion.csv",
+             ]
+df_type = [
+    "only_flags",
+    "end_lab1",
+    "opt_post_presentacion",
+    "without_optimization"
+    ]
+
 palette = ["skyblue", "tomato", "lightgreen"]
 
 float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Comparativa evolucion del proyecto")
