@@ -46,9 +46,6 @@ def draw_generic_grafic(df:pd.DataFrame, x_label:str):
         #plt.savefig(f'grafico_{metric}.png', dpi=300)
         plt.show()
 
-file_to_use = "csv_info/run_all_cases_tm.csv"
-
-df = pd.read_csv(file_to_use)
 #draw_grafic_for_flags(df)
 #draw_generic_grafic(df,"size_of_matrix")
 
@@ -100,27 +97,27 @@ titulos = ["-O0", "-O1", "-O2", "-O3","-march=native -O1","-march=native -O2","-
 
 #video(titulos, imagenes, "video_flags")
 
-def float_double ():
+def float_double (df_to_use, df_type, palette, title):
 
+    if not title:
+        title = "Comparación de datos de punto flotante y doble"
     # Cargar los archivos CSV
-    df_random_xshift = pd.read_csv("./csv_info/run_all_cases_random.csv")
-    df_random_lib = pd.read_csv("./csv_info/run_all_cases_2.csv")
-
-    # Agregar una columna para identificar el tipo de dato
-    df_random_xshift["Tipo"] = "Random XorShift32"
-    df_random_lib["Tipo"] = "Random Lib"
-
-    # Combinar los DataFrames
-    df = pd.concat([df_random_xshift, df_random_lib])
-
+    for i in range (len(df_to_use)):
+        df = pd.read_csv(df_to_use[i])
+        # Agregar una columna para identificar el tipo de dato
+        df["Tipo"] = df_type[i]
+        # Combinar los DataFrames
+        if i == 0:
+            df_final = df
+        else:
+            df_final = pd.concat([df_final, df])
     # Graficar usando Seaborn
     plt.figure(figsize=(18, 6))
-    sns.barplot(data=df, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=["skyblue", "tomato"])
-
+    sns.barplot(data=df_final, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=palette)
     # Personalización del gráfico
     plt.xlabel("Data Name")
     plt.ylabel("cells_procesed_per_micro_sec (µs/cell)")
-    plt.title("Comparación de rendimiento: Random XorShift32 vs Random Lib")
+    plt.title(title)
     plt.legend(title="Tipo de dato")
     plt.xticks(rotation=0)
     plt.tight_layout()  # Asegurarse de que no se recorten las etiquetas
@@ -128,4 +125,11 @@ def float_double ():
     # Mostrar el gráfico
     plt.show()
 
-float_double()
+
+df_to_use = ["./csv_info/run_all_cases_opt_post_presentacion.csv",
+             "./csv_info/run_all_cases_random.csv",
+             "./csv_info/run_all_cases.csv"]
+df_type = ["opt_post_presentacion", "end_lab1", "only_flags", "without_optimization"]
+palette = ["skyblue", "tomato", "lightgreen"]
+
+float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Comparativa evolucion del proyecto")

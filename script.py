@@ -6,21 +6,17 @@ import seaborn as sns
 import re
 import json
 
-flags= "-Ofast -march=native -funroll-loops -flto"
+FLAGS= "-Ofast -march=native -funroll-loops -flto"
+CODE_FILE = "./graphics/burned_probabilities_data"
 
 GCC_FLAGS_TO_TEST = {
     0: "-O0",
     1: "-O1",
     2: "-O2",
     3: "-O3",
-    #4: "-ffast-math",
-    #6: "-march=native -O0",
     7: "-march=native -O1", # Optimización básica y para la arquitectura local
     8: "-march=native -O2",
     9: "-march=native -O3",
-    #10: "-march=native -ffast-math -O1",
-    #11: "-march=native -ffast-math -O2",
-    #12: "-march=native -ffast-math -O3",
     10: "-O2 -march=native -flto",  # Optimización intermedia, arquitectura local y optimización en tiempo de enlace
     11: "-O3 -march=native -flto -funroll-loops",  # Máxima optimización, desenrollado de bucles
     12: "-ffast-math",
@@ -75,14 +71,14 @@ def parse_perf_output(perf_output: str) -> dict:
 
     return perf_data
 
-def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str="g++") -> list:
+def run_gcc_with_all_flags(data:str, amount_of_tries=10, compiler:str="g++") -> list:
     stats = []
     for flag_id, flags in GCC_FLAGS_TO_TEST.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
         for n in range(amount_of_tries):
-            result = subprocess.run(f"perf stat ./{code} {data}", shell=True, stderr=subprocess.PIPE, text=True)
+            result = subprocess.run(f"perf stat ./{CODE_FILE} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
                 perf_stats = last_value.copy()
@@ -103,10 +99,10 @@ def run_gcc_with_all_flags(code:str,  data:str, amount_of_tries=10, compiler:str
         stats.append(perf_stats.copy())
     return stats
 
-def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
+def run_all_cases(amount_of_tries:int = 1) -> list:
     stats = []
     subprocess.run("make clean", shell=True)
-    subprocess.run(f"make EXTRACXXFLAGS='{flags}'" , shell=True)
+    subprocess.run(f"make EXTRACXXFLAGS='{FLAGS}'" , shell=True)
     for data_id, data in DATA_TO_USE.items():
         print (f"Running data {data_id}, {data[0]}")
         perf_stats = {}
@@ -116,7 +112,7 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
             amount_of_tries = 30
         for n in range(amount_of_tries):
             print(f"Try number {n}")
-            result = subprocess.run(f"perf stat ./{code} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
+            result = subprocess.run(f"perf stat ./{CODE_FILE} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
             if not perf_stats:
                 perf_stats = last_value.copy()
@@ -130,47 +126,45 @@ def run_all_cases(code:str, amount_of_tries:int = 1) -> list:
                         perf_stats[key] = value  # Add the current value to the sum
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
-        # Average the statistics by dividing the accumulated sum by the number of tries
-        perf_stats.update({"flag": flags, "data_name": data[0], "size_of_matrix": data[1]})
+        perf_stats.update({"flag": FLAGS, "data_name": data[0], "size_of_matrix": data[1]})
         print(perf_stats)
         stats.append(perf_stats.copy())
     return stats
 
 def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) -> list:
-    code_file = "./graphics/burned_probabilities_data"
     stats = []
     amount_of_sims = [128, 256, 512, 1024, 2048]
     for sim_amount in amount_of_sims:
         subprocess.run("make clean", shell=True)
-        subprocess.run(f"make EXTRACXXFLAGS='{flags}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
+        subprocess.run(f"make EXTRACXXFLAGS='{FLAGS}'  DEFINES=-DSIMULATIONS={sim_amount}", shell=True)
         for k in range(6):
             perf_stats = {}
-            result = subprocess.run(f"perf stat ./{code_file} {data}", shell=True, stderr=subprocess.PIPE, text=True)
+            result = subprocess.run(f"perf stat ./{CODE_FILE} {data}", shell=True, stderr=subprocess.PIPE, text=True)
             last_value =  parse_perf_output(result.stderr)
-            if not perf_stats:
-                perf_stats = last_value.copy()
             for key, value in last_value.items():
                 if key in perf_stats:
-                    perf_stats[key] += value  # Add the current value to the sum
+                    if key in VALUES_TO_MINIMIZE:
+                        perf_stats[key] = min(perf_stats[key], value)
+                    elif key in VALUES_TO_MAXIMIZE:
+                        perf_stats[key] = max(perf_stats[key], value)
+                    else:
+                        perf_stats[key] = value  # Add the current value to the sum
                 else:
                     perf_stats[key] = value  # If the key doesn't exist, just set it
-            # Average the statistics by dividing the accumulated sum by the number of tries
-            #print(perf_stats)
             perf_stats.update({"data_name": data, "simulations": sim_amount})
 
             stats.append(perf_stats.copy())
     return stats
 
 
-code_file = "./graphics/burned_probabilities_data"
 data_file = "./data/2015_50"
 
-stats = run_all_cases(code_file,30)
+stats = run_all_cases(30)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases_random.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases_opt_post_presentacion.csv", index=False)
 
 
