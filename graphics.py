@@ -139,6 +139,6 @@ df_type = [
     "opt_post_presentacion",
     ]
 
-palette = ["skyblue", "tomato", "lightgreen", "lightcoral"]
+palette = ["#1f77b4", "#aec7e8", "#ffbb78", "#ff7f0e"]
 
 float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Comparativa evolucion del proyecto")
