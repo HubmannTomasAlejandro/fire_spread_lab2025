@@ -8,7 +8,8 @@ enum VegetationType {
   MATORRAL,
   SUBALPINE,
   WET,
-  DRY
+  DRY,
+  NONE
 } __attribute__((packed)); // packed so that it takes only 1 byte
 
 static_assert( sizeof(VegetationType) == 1 );

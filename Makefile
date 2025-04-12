@@ -1,7 +1,7 @@
 CXX = g++
 EXTRACXXFLAGS=
 DEFINES=
-CXXFLAGS = -Wall -Wextra -Werror -fopenmp $(EXTRACXXFLAGS)
+CXXFLAGS = -Wall -Wextra -Werror -fopenmp -Ofast -march=native $(EXTRACXXFLAGS)
 INCLUDE = -I./src
 CXXCMD = $(CXX) $(DEFINES) $(CXXFLAGS) $(INCLUDE)
 headers = $(wildcard ./src/*.hpp)
