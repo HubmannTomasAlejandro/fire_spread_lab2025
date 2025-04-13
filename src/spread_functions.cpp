@@ -6,6 +6,8 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
+#include <bitset>
+#include <immintrin.h>
 
 #include "fires.hpp"
 #include "landscape.hpp"
@@ -68,7 +70,7 @@ void spread_probability(
   float elevation_mean,
   float elevation_sd,
   float* probs,
-  bool* burnable_cell,              // puntero a array de 8 floats
+  std::bitset<8>& burnable_cell,              // puntero a array de 8 floats
   float upper_limit = 1.0f   // ahora sí, último argumento con valor por defecto
 ) {
   for (size_t i = 0; i < 8; i++) {
@@ -131,8 +133,14 @@ Fire simulate_fire(
   Cell neighbour_cells[8];
   float probs[8];
   bool out_of_range;
-  bool burned_cell [8];
-  bool burnable_cell [8];
+  std::bitset<8> burnable_cell;
+
+  __m256 rand_vec;
+  __m256 prob_vec;
+  __m256 cmp_result;
+
+  u_int8_t mask; // 8-bit int
+
 
   for (size_t i = 0; i < end; i++) {
     size_t cell_0 = ignition_cells[i].first;
@@ -152,10 +160,8 @@ Fire simulate_fire(
       size_t burning_cell_0 = burned_ids[b].first;
       size_t burning_cell_1 = burned_ids[b].second;
 
-      for (size_t i = 0; i < 8; i++) {
-        burnable_cell[i] = false;
-        burned_cell[i] = false;
-    }
+      burnable_cell.reset();
+
 
       const Cell& burning_cell = landscape[{ burning_cell_0, burning_cell_1 }];
 
@@ -177,6 +183,8 @@ Fire simulate_fire(
                 (!burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] && neighbour_cells[i].burnable);
       }
 
+      if (burnable_cell.none()) continue;  // No burnable neighbours
+
       // Burn with probability prob (Bernoulli)
       spread_probability(
         burning_cell, neighbour_cells, params, distance, elevation_mean,
@@ -184,26 +192,20 @@ Fire simulate_fire(
       );
       rng.nextRandomArray(random_values);
 
-      bool any_burn = false;  // Flag to check if any cell should burn
+      rand_vec = _mm256_loadu_ps(random_values); // or _mm256_load_ps if aligned
+      prob_vec = _mm256_loadu_ps(probs);
+      // Compare: random_values < probs
+      cmp_result = _mm256_cmp_ps(rand_vec, prob_vec, _CMP_LT_OQ);
 
-      // Check each neighbor's burn condition
-      for (size_t i = 0; i < 8; i++) {
-        burned_cell[i] = random_values[i] < probs[i]; // Set burn condition for each cell
+      // Move mask to int (each bit in lower byte corresponds to result)
+      mask = static_cast<uint8_t>(_mm256_movemask_ps(cmp_result)); // 8-bit int
 
-        // If any cell should burn, set 'any_burn' to true
-        if (burned_cell[i]) {
-          any_burn = true;
-        }
-      }
 
       // Proceed only if at least one cell burns
-      if (!any_burn){
-        continue;  // No cell burns, skip to next iteration
-      }
+      if (mask==0) continue;
 
       for (size_t i = 0; i < 8; i++) {
-        if (burned_cell[i]) {  // If the cell should burn
-            // Assuming `neighbour_cell_0` and `neighbour_cell_1` are the coordinates of the neighbor cell
+        if ((mask >> i) & 1) {  // If the cell should burn
             burned_ids.push_back({ neighbours_coords[0][i], neighbours_coords[1][i] });
             burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] = true;  // Mark as burned
             end_forward++;  // Increase the count of burned cells
