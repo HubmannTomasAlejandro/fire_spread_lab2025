@@ -76,8 +76,8 @@ void spread_probability(
   for (size_t i = 0; i < 8; i++) {
       const Cell& neighbour = neighbors[i];
 
-      float slope_term = sin(atan((neighbour.elevation - burning.elevation) / distance));
-      float wind_term = cos(ANGLES[i] - burning.wind_direction);
+      float slope_term = sinf(atanf((neighbour.elevation - burning.elevation) / distance));
+      float wind_term = cosf(ANGLES[i] - burning.wind_direction);
       float elev_term = (neighbour.elevation - elevation_mean) / elevation_sd;
 
       float linpred = params.independent_pred;
@@ -99,7 +99,7 @@ void spread_probability(
 
       probs[i] = (neighbour.vegetation_type == NONE || !burnable_cell[i])
           ? 0.0f
-          : upper_limit / (1.0f + exp(-linpred));
+          : upper_limit / (1.0f + expf(-linpred));
   }
 }
 
