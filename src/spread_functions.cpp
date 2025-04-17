@@ -62,7 +62,7 @@ XorShift32 rng;
 
 void spread_probability(
   const Cell& burning,
-  const Cell neighbors[8],  // arreglo C-style de 8 vecinos
+  const std::vector<std::pair<size_t, size_t>> neighbors[8],  // arreglo C-style de 8 vecinos
   SimulationParams params,
   float distance,
   float elevation_mean,
@@ -128,7 +128,7 @@ Fire simulate_fire(
   Matrix<bool> burned_bin = Matrix<bool>(n_col, n_row);
 
   float random_values[8];
-  Cell neighbour_cells[8];
+  std::vector<std::pair<size_t, size_t>> neighbour_cells[8];
   float probs[8];
   bool out_of_range;
   bool burned_cell [8];
