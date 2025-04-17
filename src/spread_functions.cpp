@@ -53,7 +53,7 @@ public:
     }
 
     // Method to generate 8 random values and store in an array
-    void nextRandomArray(float random_values[8]) {
+    void inline nextRandomArray(float random_values[8]) {
         for (size_t i = 0; i < 8; i++) {
             random_values[i] = static_cast<float>((*this)(i)) / static_cast<float>(UINT32_MAX);
         }
@@ -62,7 +62,7 @@ public:
 
 XorShift32 rng;
 
-void spread_probability(
+void inline spread_probability(
   const Cell& burning,
   const Cell neighbors[8],  // arreglo C-style de 8 vecinos
   SimulationParams params,
