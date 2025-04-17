@@ -165,6 +165,6 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases_vectorization_try.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases_vectorization_structure_of_array.csv", index=False)
 
 
