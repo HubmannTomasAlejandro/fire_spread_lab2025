@@ -1,0 +1,11 @@
+cells_procesed_per_micro_sec,cycles,insn_per_cycle,branches,branch_misses,time_elapsed,user_time,sys_time,instructions,flag,data_name,size_of_matrix
+3.522955,19,169,346,390,11955582275,11285958000,635163000,919,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/1999_27j_S,1483274
+3.522588,2,169,997,14,709264243,674908000,22018000,320,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/1999_28,94188
+3.138094,11,189,257,35,19428089,16392000,962000,495,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2000_8,8008
+2.601782,27,197,425,23,25569114,21691000,1007000,788,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2005_6,14161
+2.321145,28,158,746,27,6686000,5806000,961000,314,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2005_26,2548
+4.060302,113,176,788,67,340719160,317202000,9009000,80,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2009_3,15912
+0.256734,2,228,950,8,55887523,51266000,1990000,772,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2011_19E,48614
+0.813122,61,219,741,30,17581597,14259000,0,680,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2011_19W,13125
+3.393372,128,161,237,82,147631996072,134881466000,12617285000,270,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2015_50,10434109
+3.598064,98,177,884,5,31777928720,30628841000,960923000,975,-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized,./data/2021_865,4696595
