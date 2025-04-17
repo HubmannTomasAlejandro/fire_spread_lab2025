@@ -6,7 +6,7 @@ import seaborn as sns
 import re
 import json
 
-FLAGS= "-Ofast -march=native -funroll-loops -flto"
+FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
 CODE_FILE = "./graphics/burned_probabilities_data"
 
 GCC_FLAGS_TO_TEST = {
@@ -165,6 +165,6 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases_vectorization_try.csv", index=False)
+df.to_csv(f"csv_info/run_all_cases_pragma_omp_SoA.csv", index=False)
 
 
