@@ -120,7 +120,7 @@ void spread_probability(
     const std::bitset<8>& burnable_cell,
     float upper_limit = 1.0f
 ) {
-    
+
    // Empaquetar campos en Structure‑of‑Arrays
    alignas(32) float elev_arr[8];
    VegetationType veg_arr[8];
@@ -134,7 +134,7 @@ void spread_probability(
        asp_arr[i]   = neighbors[i].aspect;
        // burn_arr[i] = neighbors[i].burnable;
    }
-  
+
   // Parallel + SIMD en un solo pragma
     #pragma omp simd
     for (size_t i = 0; i < 8; ++i) {
@@ -175,7 +175,7 @@ void spread_probability(
     float elevation_mean,
     float elevation_sd,
     float* probs,                   // output[8]
-    std::bitset<8>& burnable_cell,  
+    std::bitset<8>& burnable_cell,
     float upper_limit = 1.0f
 ) {
     // 1) Construye vector de índices lineales = y * width + x
@@ -444,16 +444,16 @@ void inline spread_probability(
 
   // 1) Definimos una tabla de predictores por VegetationType
   static const float veg_pred[5] = {
-    /* MATORRAL */    0.f,                     
+    /* MATORRAL */    0.f,
     /* SUBALPINE */   params.subalpine_pred,
     /* WET */         params.wet_pred,
     /* DRY */         params.dry_pred,
     /* NONE */        0.f
   };
 
-  //#pragma omp simd
+  #pragma omp simd
   for (size_t i = 0; i < 8; i++) {
-      
+
       neighbour.first = neighbours[0][i];
       neighbour.second =  neighbours[1][i];
 
@@ -544,7 +544,6 @@ Fire simulate_fire(
 
       const Cell& burning_cell = landscape[{ burning_cell_0, burning_cell_1 }];
 
-      //#pragma omp simd
       for (size_t i = 0; i < 8; i++) {
 
         neighbours_coords[0][i] = int(burning_cell_0) + MOVES[i][0];

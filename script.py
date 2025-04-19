@@ -7,7 +7,7 @@ import re
 import json
 
 #FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
-FLAGS = "-O3 -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
+FLAGS = "-Ofast -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd"
 CODE_FILE = "./graphics/burned_probabilities_data"
 
 GCC_FLAGS_TO_TEST = {
@@ -45,7 +45,7 @@ GCC_FLAGS_VECT = {
     15: "-Ofast -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops -flto",
     16: "-O0",
 
-}  
+}
 
 DATA_TO_USE = {
     1: ("./data/1999_27j_S", 1157 * 1282),
@@ -180,13 +180,13 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 data_file = "./data/1999_27j_S"
 
-#stats = run_all_cases(30)
-stats = run_gcc_with_all_flags(data_file, 30)
+stats = run_all_cases(30)
+#stats = run_gcc_with_all_flags(data_file, 30)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_with_all_flags_1999.csv", index=False)
+df.to_csv(f"csv_info/con_pragma.csv", index=False)
 
 
