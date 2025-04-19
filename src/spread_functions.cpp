@@ -52,7 +52,7 @@ public:
 };
 
 XorShift32 rng;
-
+/*
 void inline spread_probability(
   const Landscape& landscape,
   const Cell& burning,
@@ -67,8 +67,8 @@ void inline spread_probability(
 ) {
   std::pair<size_t, size_t> neighbour;
   for (size_t i = 0; i < 8; i++) {
-      neighbour.first = neighbours[0][i];
-      neighbour.second =  neighbours[1][i];
+    neighbour.first = neighbours[0][i];
+    neighbour.second =  neighbours[1][i];
 
       float slope_term = sinf(atanf((landscape.elevations[{neighbour.first, neighbour.second}] - burning.elevation) / distance));
       float wind_term = cosf(ANGLES[i] - burning.wind_direction);
@@ -78,24 +78,82 @@ void inline spread_probability(
 
       if (landscape.vegetation_types[{ neighbour.first, neighbour.second }] == SUBALPINE) {
           linpred += params.subalpine_pred;
-      } else if (landscape.vegetation_types[{ neighbour.first, neighbour.second }] == WET) {
+        } else if (landscape.vegetation_types[{ neighbour.first, neighbour.second }] == WET) {
           linpred += params.wet_pred;
-      } else if (landscape.vegetation_types[{ neighbour.first, neighbour.second }] == DRY) {
+        } else if (landscape.vegetation_types[{ neighbour.first, neighbour.second }] == DRY) {
           linpred += params.dry_pred;
-      }
+        }
 
-      linpred += params.fwi_pred * landscape.fwis[{ neighbour.first, neighbour.second }];
-      linpred += params.aspect_pred * landscape.aspects[{ neighbour.first, neighbour.second }];
+        linpred += params.fwi_pred * landscape.fwis[{ neighbour.first, neighbour.second }];
+        linpred += params.aspect_pred * landscape.aspects[{ neighbour.first, neighbour.second }];
 
-      linpred += wind_term * params.wind_pred +
-                 elev_term * params.elevation_pred +
+        linpred += wind_term * params.wind_pred +
+        elev_term * params.elevation_pred +
                  slope_term * params.slope_pred;
 
-      probs[i] = (landscape.vegetation_types[{neighbour.first, neighbour.second}] == NONE || !burnable_cell[i])
-          ? 0.0f
-          : upper_limit / (1.0f + expf(-linpred));
+                 probs[i] = (landscape.vegetation_types[{neighbour.first, neighbour.second}] == NONE || !burnable_cell[i])
+                 ? 0.0f
+                 : upper_limit / (1.0f + expf(-linpred));
+                }
+              }
+*/
+
+void inline spread_probability(
+  const Landscape& landscape,
+  const Cell& burning,
+  const int neighbours[2][8],  // arreglo C-style de 8 vecinos
+  SimulationParams params,
+  float distance,
+  float elevation_mean,
+  float elevation_sd,
+  float* probs,
+  std::bitset<8>& burnable_cell,              // puntero a array de 8 floats
+  float upper_limit = 1.0f   // ahora sí, último argumento con valor por defecto
+) {
+
+ // Empaquetar campos en Structure‑of‑Arrays
+ alignas(32) float elev_arr[8];
+ VegetationType veg_arr[8];
+ float fwi_arr[8];
+ float asp_arr[8];
+
+ for (size_t i = 0; i < 8; ++i) {
+     elev_arr[i]  = float(landscape.elevations[{neighbours[0][i], neighbours[1][i]}]);
+     veg_arr[i]   = landscape.vegetation_types[{neighbours[0][i], neighbours[1][i]}];
+     fwi_arr[i]   = float(landscape.fwis[{neighbours[0][i], neighbours[1][i]}]);
+     asp_arr[i]   = float(landscape.aspects[{neighbours[0][i], neighbours[1][i]}]);
+ }
+
+// Parallel + SIMD en un solo pragma
+  #pragma omp simd
+  for (size_t i = 0; i < 8; ++i) {
+    float diff       = elev_arr[i] - burning.elevation;
+    float slope_term = sinf(atanf(diff / distance));
+    float wind_term  = cosf(ANGLES[i] - burning.wind_direction);
+    float elev_term  = (elev_arr[i] - elevation_mean) / elevation_sd;
+
+    float linpred = params.independent_pred;
+    switch (veg_arr[i]) {
+        case SUBALPINE: linpred += params.subalpine_pred; break;
+        case WET:       linpred += params.wet_pred;       break;
+        case DRY:       linpred += params.dry_pred;       break;
+        default:        /* NONE */                        break;
+    }
+    linpred += params.fwi_pred     * fwi_arr[i]
+            + params.aspect_pred  * asp_arr[i]
+            + params.wind_pred    * wind_term
+            + params.elevation_pred * elev_term
+            + params.slope_pred   * slope_term;
+
+      // Cálculo final de la probabilidad
+      bool can_burn = (veg_arr[i] == NONE) || !burnable_cell[i];
+      probs[i] = can_burn
+               ? 0.0f
+               : upper_limit / (1.0f + expf(-linpred));
   }
 }
+
+
 
 
 Fire simulate_fire(
