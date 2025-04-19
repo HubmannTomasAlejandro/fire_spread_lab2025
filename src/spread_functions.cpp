@@ -439,7 +439,7 @@ void inline spread_probability(
   std::bitset<8>& burnable_cell,              // puntero a array de 8 floats
   float upper_limit = 1.0f   // ahora sí, último argumento con valor por defecto
 ) {
-  //__builtin_assume_aligned(probs, 32);
+  //__builtin_assume_aligned(probs, 32) ;
   std::pair<size_t, size_t> neighbour;
 
   // 1) Definimos una tabla de predictores por VegetationType
