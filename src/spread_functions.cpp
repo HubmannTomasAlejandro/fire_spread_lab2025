@@ -426,7 +426,7 @@ public:
 };
 
 XorShift32 rng;
-
+/*
 void inline spread_probability(
   const Landscape& landscape,
   const Cell& burning,
@@ -443,16 +443,16 @@ void inline spread_probability(
   std::pair<size_t, size_t> neighbour;
 
   // 1) Definimos una tabla de predictores por VegetationType
-  static const float veg_pred[5] = {
-    /* MATORRAL */    0.f,
-    /* SUBALPINE */   params.subalpine_pred,
-    /* WET */         params.wet_pred,
-    /* DRY */         params.dry_pred,
-    /* NONE */        0.f
-  };
+  //static const float veg_pred[5] = {
+  //  /* MATORRAL */    //0.f,
+  //  /* SUBALPINE */   params.subalpine_pred,
+  //  /* WET */         params.wet_pred,
+  //  /* DRY */         params.dry_pred,
+  //  /* NONE */        0.f
+  //};
 
-  #pragma omp simd
-  for (size_t i = 0; i < 8; i++) {
+  //#pragma omp simd
+  /*for (size_t i = 0; i < 8; i++) {
 
       neighbour.first = neighbours[0][i];
       neighbour.second =  neighbours[1][i];
@@ -479,6 +479,116 @@ void inline spread_probability(
           ? 0.0f
           : upper_limit / (1.0f + expf(-linpred));
   }
+}
+*/
+
+
+void inline spread_probability_simd(
+    const Landscape& landscape,
+    const Cell& burning,
+    const int neighbours[2][8],
+    const SimulationParams& params,
+    float distance,
+    float elevation_mean,
+    float elevation_sd,
+    float* __restrict probs,
+    std::bitset<8> const& burnable_cell,
+    float upper_limit = 1.0f
+) {
+    // 1) punteros a las matrices internas
+    const short* elev_data = landscape.elevations[{0,0}];
+    const float* wind_dir_data = landscape.wind_directions[{0,0}];
+    const VegetationType* veg_data = landscape.vegetation_types[{0,0}];
+    const float* fwi_data  = landscape.fwis[{0,0}];
+    const float* aspect_data = landscape.aspects[{0,0}];
+    const size_t width = landscape.width;
+
+    // 2) cargar constantes escalares en vectores
+    __m256 v_burn_elev   = _mm256_set1_ps((float)burning.elevation);
+    __m256 v_wind_dir    = _mm256_set1_ps(burning.wind_direction);
+    __m256 v_dist_inv    = _mm256_set1_ps(1.0f / distance);
+    __m256 v_elev_mean   = _mm256_set1_ps(elevation_mean);
+    __m256 v_elev_sd_inv = _mm256_set1_ps(1.0f / elevation_sd);
+    __m256 v_indep       = _mm256_set1_ps(params.independent_pred);
+    __m256 v_fwi_pred    = _mm256_set1_ps(params.fwi_pred);
+    __m256 v_aspect_pred = _mm256_set1_ps(params.aspect_pred);
+    __m256 v_wind_pred   = _mm256_set1_ps(params.wind_pred);
+    __m256 v_elev_pred   = _mm256_set1_ps(params.elevation_pred);
+    __m256 v_slope_pred  = _mm256_set1_ps(params.slope_pred);
+    __m256 v_upper       = _mm256_set1_ps(upper_limit);
+
+    // 3) tabla de vegetación en un array alineado a 32 B
+    alignas(32) static float veg_pred_tbl[5] = {
+        0.f,
+        0.f, // SUBALPINE
+        0.f, // WET
+        0.f, // DRY
+        0.f  // NONE
+    };
+    veg_pred_tbl[1] = params.subalpine_pred;
+    veg_pred_tbl[2] = params.wet_pred;
+    veg_pred_tbl[3] = params.dry_pred;
+
+    // 4) cargar ANGLES y vecinos
+    __m256  v_angles = _mm256_loadu_ps(ANGLES);
+    __m256i vx       = _mm256_loadu_si256((const __m256i*)neighbours[0]);
+    __m256i vy       = _mm256_loadu_si256((const __m256i*)neighbours[1]);
+    __m256i v_width  = _mm256_set1_epi32((int)width);
+    __m256i vidx     = _mm256_add_epi32(_mm256_mullo_epi32(vy, v_width), vx);
+
+    // 5) gather de elevaciones, fwi y aspects (float)  
+    __m256 v_elev   = _mm256_i32gather_ps(elev_data, vidx,  sizeof(*elev_data));
+    __m256 v_fwi    = _mm256_i32gather_ps(fwi_data, vidx,  sizeof(*fwi_data));
+    __m256 v_aspect = _mm256_i32gather_ps(aspect_data, vidx,  sizeof(*aspect_data));
+
+    // 6) gather de tipos de vegetación (byte → int → índice en veg_pred_tbl)
+    //    Primero gather 32 bit (cogemos el byte + basura, pero luego lo enmascaramos)
+    __m256i raw_vt = _mm256_i32gather_epi32(
+        reinterpret_cast<const int*>(veg_data), 
+        vidx, 
+        sizeof(*veg_data)
+    );
+    // enmascarar para quedarnos con el LSB
+    __m256i vt_idx = _mm256_and_si256(raw_vt, _mm256_set1_epi32(0xFF));
+    __m256  v_veg_pred = _mm256_i32gather_ps(veg_pred_tbl, vt_idx, sizeof(veg_pred_tbl[0]));
+
+    // 7) cálculo de slope_term, wind_term y elev_term
+    __m256 v_diff     = _mm256_sub_ps(v_elev, v_burn_elev);
+    __m256 v_ratio    = _mm256_mul_ps(v_diff, v_dist_inv);
+    __m256 v_slope    = _mm256_sin_ps( _mm256_atan_ps(v_ratio) );
+    __m256 v_wind     = _mm256_cos_ps( _mm256_sub_ps(v_angles, v_wind_dir) );
+    __m256 v_elev_tm  = _mm256_mul_ps(
+        _mm256_sub_ps(v_elev, v_elev_mean),
+        v_elev_sd_inv
+    );
+
+    // 8) montar el predictor lineal con FMAs
+    __m256 lin = v_indep;
+    lin = _mm256_add_ps(lin, v_veg_pred);
+    lin = _mm256_fmadd_ps(v_fwi,        v_fwi_pred,    lin);
+    lin = _mm256_fmadd_ps(v_aspect,     v_aspect_pred, lin);
+    lin = _mm256_fmadd_ps(v_wind,       v_wind_pred,   lin);
+    lin = _mm256_fmadd_ps(v_elev_tm,    v_elev_pred,   lin);
+    lin = _mm256_fmadd_ps(v_slope,      v_slope_pred,  lin);
+
+    // 9) sigmoide vectorizada: upper/(1+exp(-lin))
+    __m256 expv    = _mm256_exp_ps( _mm256_sub_ps(_mm256_setzero_ps(), lin) );
+    __m256 probv   = _mm256_div_ps(v_upper, _mm256_add_ps(_mm256_set1_ps(1.f), expv));
+
+    // 10) mascarillas: vt==NONE o burnable_cell==false → 0
+    __m256i mask_none = _mm256_cmpeq_epi32(vt_idx, _mm256_set1_epi32(NONE));
+    alignas(32) uint32_t bm[8];
+    for(int i = 0; i < 8; ++i) bm[i] = burnable_cell[i] ? 0xFFFFFFFFu : 0;
+    __m256i mask_burn = _mm256_load_si256((const __m256i*)bm);
+    __m256i final_m  = _mm256_andnot_si256(
+        _mm256_or_si256(mask_none, _mm256_xor_si256(mask_burn, _mm256_set1_epi32(-1))),
+        _mm256_set1_epi32(-1)
+    );
+    __m256  m_ps     = _mm256_castsi256_ps(final_m);
+
+    // 11) aplicar máscara y almacenar
+    __m256 result = _mm256_and_ps(probv, m_ps);
+    _mm256_storeu_ps(probs, result);
 }
 
 
