@@ -26,12 +26,16 @@ struct Cell {
 struct Landscape {
   size_t width;
   size_t height;
+  Matrix<short> elevations;
+  Matrix<float> wind_directions;
+  Matrix<bool> burnables;
+  Matrix<VegetationType> vegetation_types;
+  Matrix<float> fwis;
+  Matrix<float> aspects;
 
   Landscape(size_t width, size_t height);
   Landscape(std::string metadata_filename, std::string data_filename);
 
   Cell operator[](std::pair<size_t, size_t> index) const;
-  Cell& operator[](std::pair<size_t, size_t> index);
 
-  Matrix<Cell> cells;
 };

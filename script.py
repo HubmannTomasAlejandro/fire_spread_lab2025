@@ -6,7 +6,8 @@ import seaborn as sns
 import re
 import json
 
-FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
+#FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
+FLAGS = "-O3 -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
 CODE_FILE = "./graphics/burned_probabilities_data"
 
 GCC_FLAGS_TO_TEST = {
@@ -25,6 +26,26 @@ GCC_FLAGS_TO_TEST = {
     15: "-march=native -ffast-math -O3",
 }
 
+GCC_FLAGS_VECT = {
+    0: "-O1 -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd",
+    1: "-O2 -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd",
+    2: "-O3 -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd",
+    3: "-Ofast -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd",
+    4: "-O1 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd",
+    5: "-O2 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd",
+    6: "-O3 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd",
+    7: "-Ofast -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd",
+    8: "-O1 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops",
+    9: "-O2 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops",
+    10: "-O3 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops",
+    11: "-Ofast -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops",
+    12: "-O1 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops -flto",
+    13: "-O2 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops -flto",
+    14: "-O3 -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops -flto",
+    15: "-Ofast -march=native -ftree-vectorize -fopt-info-vec-optimized -fopenmp-simd -funroll-loops -flto",
+    16: "-O0",
+
+}  
 
 DATA_TO_USE = {
     1: ("./data/1999_27j_S", 1157 * 1282),
@@ -73,7 +94,7 @@ def parse_perf_output(perf_output: str) -> dict:
 
 def run_gcc_with_all_flags(data:str, amount_of_tries=10, compiler:str="g++") -> list:
     stats = []
-    for flag_id, flags in GCC_FLAGS_TO_TEST.items():
+    for flag_id, flags in GCC_FLAGS_VECT.items():
         perf_stats = {}
         subprocess.run("make clean", shell=True)
         subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
@@ -157,14 +178,15 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
     return stats
 
 
-data_file = "./data/2015_50"
+data_file = "./data/1999_27j_S"
 
-stats = run_all_cases(30)
+#stats = run_all_cases(30)
+stats = run_gcc_with_all_flags(data_file, 30)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/run_all_cases_pragma_omp_float_SoA2.csv", index=False)
+df.to_csv(f"csv_info/run_with_all_flags_1999.csv", index=False)
 
 
