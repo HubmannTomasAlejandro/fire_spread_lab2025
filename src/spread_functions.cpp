@@ -443,13 +443,13 @@ void inline spread_probability(
   std::pair<size_t, size_t> neighbour;
 
   // 1) Definimos una tabla de predictores por VegetationType
-  //static const float veg_pred[5] = {
-  //  /* MATORRAL */    //0.f,
-  //  /* SUBALPINE */   params.subalpine_pred,
-  //  /* WET */         params.wet_pred,
-  //  /* DRY */         params.dry_pred,
-  //  /* NONE */        0.f
-  //};
+  static const float veg_pred[5] = {
+    MATORRAL     0.f,
+    SUBALPINE    params.subalpine_pred,
+    WET          params.wet_pred,
+    DRY         params.dry_pred,
+    NONE        0.f
+  };
 
   //#pragma omp simd
   /*for (size_t i = 0; i < 8; i++) {
@@ -482,7 +482,7 @@ void inline spread_probability(
 }
 */
 
-
+/*
 void inline spread_probability_simd(
     const Landscape& landscape,
     const Cell& burning,
@@ -590,6 +590,100 @@ void inline spread_probability_simd(
     __m256 result = _mm256_and_ps(probv, m_ps);
     _mm256_storeu_ps(probs, result);
 }
+*/
+
+
+void inline spread_probability(
+  const Landscape& landscape,
+  const Cell& burning,
+  const int neighbours[2][8],
+  const SimulationParams& params,
+  float distance,
+  float elevation_mean,
+  float elevation_sd,
+  float* __restrict probs,
+  std::bitset<8> const& burnable_cell,
+  float upper_limit = 1.0f
+) {
+  // Tabla de predictores por VegetationType
+  static const float veg_pred[5] = {
+    0.f,
+    params.subalpine_pred,
+    params.wet_pred,
+    params.dry_pred,
+    0.f
+  };
+
+  // Buffers temporales para cargar datos vecinos
+  alignas(32) float  elevs[8], fwis[8], aspects[8], angles[8];
+  alignas(32) int    veg_types[8];
+  alignas(32) float  burnable_mask[8]; // 1.0 si es quemable, 0.0 si no
+
+  for (int i = 0; i < 8; ++i) {
+    auto idx = std::pair<size_t, size_t>{
+      static_cast<size_t>(neighbours[0][i]),
+      static_cast<size_t>(neighbours[1][i])
+    };
+
+    elevs[i]       = static_cast<float>(landscape.elevations[idx]);
+    fwis[i]        = landscape.fwis[idx];
+    aspects[i]     = landscape.aspects[idx];
+    veg_types[i]   = static_cast<int>(landscape.vegetation_types[idx]);
+    angles[i]      = ANGLES[i];
+    burnable_mask[i] = (landscape.vegetation_types[idx] == NONE || !burnable_cell[i]) ? 0.f : 1.f;
+  }
+
+  // Cargar en vectores AVX
+  __m256 v_elev     = _mm256_load_ps(elevs);
+  __m256 v_fwi      = _mm256_load_ps(fwis);
+  __m256 v_aspect   = _mm256_load_ps(aspects);
+  __m256 v_angles   = _mm256_load_ps(angles);
+  //__m256i v_veg_idx = _mm256_load_si256((__m256i*)veg_types);
+  __m256 v_mask     = _mm256_load_ps(burnable_mask);
+
+  __m256 v_burning_elev = _mm256_set1_ps(static_cast<float>(burning.elevation));
+  __m256 v_burning_dir  = _mm256_set1_ps(burning.wind_direction);
+  __m256 v_dist         = _mm256_set1_ps(distance);
+  __m256 v_elev_mean    = _mm256_set1_ps(elevation_mean);
+  __m256 v_elev_sd      = _mm256_set1_ps(elevation_sd);
+
+  __m256 v_diff = _mm256_sub_ps(v_elev, v_burning_elev);
+  __m256 v_slope = _mm256_div_ps(v_diff, v_dist);
+  __m256 v_slope_term = _mm256_sin_ps(_mm256_atan_ps(v_slope));
+
+  __m256 v_wind_term =_mm256_cos_ps(_mm256_sub_ps(v_angles, v_burning_dir));
+  __m256 v_elev_term = _mm256_div_ps(_mm256_sub_ps(v_elev, v_elev_mean), v_elev_sd);
+
+  __m256 v_linpred = _mm256_set1_ps(params.independent_pred);
+
+  // Agregamos predictores por vegetación (lookup en tiempo de compilación)
+  alignas(32) float veg_lookup[8];
+  for (int i = 0; i < 8; ++i) {
+    veg_lookup[i] = veg_pred[veg_types[i]];
+  }
+  v_linpred = _mm256_add_ps(v_linpred, _mm256_load_ps(veg_lookup));
+
+  // Otros predictores
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.fwi_pred), v_fwi, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.aspect_pred), v_aspect, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.wind_pred), v_wind_term, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.elevation_pred), v_elev_term, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.slope_pred), v_slope_term, v_linpred);
+
+  // Aplicamos la función logística
+  __m256 v_neg_pred = _mm256_mul_ps(v_linpred, _mm256_set1_ps(-1.0f));
+  __m256 v_prob = _mm256_div_ps(
+      _mm256_set1_ps(upper_limit),
+      _mm256_add_ps(_mm256_set1_ps(1.0f),_mm256_exp_ps(v_neg_pred))
+  );
+
+  // Aplicar la máscara de celdas quemables
+  v_prob = _mm256_mul_ps(v_prob, v_mask);
+
+  // Guardar el resultado
+  _mm256_store_ps(probs, v_prob);
+}
+
 
 
 Fire simulate_fire(

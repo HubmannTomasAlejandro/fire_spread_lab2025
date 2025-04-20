@@ -123,7 +123,7 @@ def run_gcc_with_all_flags(data:str, amount_of_tries=10, compiler:str="g++") -> 
 def run_all_cases(amount_of_tries:int = 1) -> list:
     stats = []
     subprocess.run("make clean", shell=True)
-    subprocess.run(f"make EXTRACXXFLAGS='{FLAGS}'" , shell=True)
+    subprocess.run(f"make CXX='icpx' EXTRACXXFLAGS='{FLAGS}'" , shell=True)
     for data_id, data in DATA_TO_USE.items():
         print (f"Running data {data_id}, {data[0]}")
         perf_stats = {}
