@@ -39,7 +39,7 @@ Landscape::Landscape(std::string metadata_filename, std::string data_filename)
   height = atoi((*metadata_csv)[1].data());
 
 
-  elevations = Matrix<short>(width, height);
+  elevations = Matrix<float>(width, height);
   wind_directions = Matrix<float>(width, height);
   burnables = Matrix<bool>(width, height);
   vegetation_types = Matrix<VegetationType>(width, height);

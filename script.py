@@ -7,7 +7,7 @@ import re
 import json
 
 #FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
-FLAGS = "-Ofast -march=native -mfma -mavx2 -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized -fopenmp-simd"
+FLAGS = "-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML"
 CODE_FILE = "./graphics/burned_probabilities_data"
 
 GCC_FLAGS_TO_TEST = {
