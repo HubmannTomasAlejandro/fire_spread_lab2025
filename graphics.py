@@ -128,17 +128,15 @@ def float_double (df_to_use, df_type, palette, title):
 
 df_to_use = [
             "./csv_info/original_performance.csv",
-             "./csv_info/run_all_cases.csv",
-             "./csv_info/run_all_cases_random.csv",
             "./csv_info/run_all_cases_opt_post_presentacion.csv",
-             ]
+            "./csv_info/intrinsics.csv",
+            ]
+
 df_type = [
-    "without_optimization",
-    "only_flags",
-    "end_lab1",
-    "opt_post_presentacion",
+    "sin optimización",
+    "Lab 1",
+    "Lab 2"
     ]
 
-palette = ["#1f77b4", "#aec7e8", "#ffbb78", "#ff7f0e"]
-
-float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Comparativa evolucion del proyecto")
+palette = ["#5caee3", "#ffb347", "#f25c54"]
+float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Evolucion de rendimiento")
