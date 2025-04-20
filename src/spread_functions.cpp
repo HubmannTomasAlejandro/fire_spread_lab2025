@@ -9,19 +9,13 @@
 #include <bitset>
 #include <immintrin.h>
 
+#include <cstddef>
+#include <omp.h>
+
 #include "fires.hpp"
 #include "landscape.hpp"
 #include "constants.hpp"
 
-
-static Cell out_of_bounds_cell = {
-  0,               // elevation
-  0.0f,            // wind_direction
-  false,           // burnable
-  VegetationType::NONE, // vegetation_type
-  0.0f,            // fwi (Fire Weather Index)
-  0.0f             // aspect
-};
 
 static uint32_t seeds[8] = {12345, 67890, 13579, 24680, 11223, 44556, 77889, 99000};
 
@@ -63,45 +57,96 @@ public:
 XorShift32 rng;
 
 void inline spread_probability(
+  const Landscape& landscape,
   const Cell& burning,
-  const Cell neighbors[8],  // arreglo C-style de 8 vecinos
-  SimulationParams params,
+  const int neighbours[2][8],
+  const SimulationParams& params,
   float distance,
   float elevation_mean,
   float elevation_sd,
-  float* probs,
-  std::bitset<8>& burnable_cell,              // puntero a array de 8 floats
-  float upper_limit = 1.0f   // ahora sí, último argumento con valor por defecto
+  float* __restrict probs,
+  std::bitset<8> const& burnable_cell,
+  float upper_limit = 1.0f
 ) {
-  for (size_t i = 0; i < 8; i++) {
-      const Cell& neighbour = neighbors[i];
+  // Tabla de predictores por VegetationType
+  static const float veg_pred[5] = {
+    0.f,
+    params.subalpine_pred,
+    params.wet_pred,
+    params.dry_pred,
+    0.f
+  };
 
-      float slope_term = sinf(atanf((neighbour.elevation - burning.elevation) / distance));
-      float wind_term = cosf(ANGLES[i] - burning.wind_direction);
-      float elev_term = (neighbour.elevation - elevation_mean) / elevation_sd;
+  // Buffers temporales para cargar datos vecinos
+  alignas(32) float  elevs[8], fwis[8], aspects[8];
+  alignas(32) int    veg_types[8];
+  alignas(32) float  burnable_mask[8]; // 1.0 si es quemable, 0.0 si no
 
-      float linpred = params.independent_pred;
+  for (int i = 0; i < 8; ++i) {
+    auto idx = std::pair<size_t, size_t>{
+      static_cast<size_t>(neighbours[0][i]),
+      static_cast<size_t>(neighbours[1][i])
+    };
 
-      if (neighbour.vegetation_type == SUBALPINE) {
-          linpred += params.subalpine_pred;
-      } else if (neighbour.vegetation_type == WET) {
-          linpred += params.wet_pred;
-      } else if (neighbour.vegetation_type == DRY) {
-          linpred += params.dry_pred;
-      }
-
-      linpred += params.fwi_pred * neighbour.fwi;
-      linpred += params.aspect_pred * neighbour.aspect;
-
-      linpred += wind_term * params.wind_pred +
-                 elev_term * params.elevation_pred +
-                 slope_term * params.slope_pred;
-
-      probs[i] = (neighbour.vegetation_type == NONE || !burnable_cell[i])
-          ? 0.0f
-          : upper_limit / (1.0f + expf(-linpred));
+    elevs[i]       = static_cast<float>(landscape.elevations[idx]);
+    fwis[i]        = landscape.fwis[idx];
+    aspects[i]     = landscape.aspects[idx];
+    veg_types[i]   = static_cast<int>(landscape.vegetation_types[idx]);
+    burnable_mask[i] = (landscape.vegetation_types[idx] == NONE || !burnable_cell[i]) ? 0.f : 1.f;
   }
+
+  // Cargar en vectores AVX datos de los vecinos
+  __m256 v_elev     = _mm256_load_ps(elevs);
+  __m256 v_fwi      = _mm256_load_ps(fwis);
+  __m256 v_aspect   = _mm256_load_ps(aspects);
+  __m256 v_angles   = _mm256_load_ps(ANGLES);
+  //__m256i v_veg_idx = _mm256_load_si256((__m256i*)veg_types);
+  __m256 v_mask     = _mm256_load_ps(burnable_mask);
+
+  // hacer vecctores con los parametros de la celda quemada, repetidos
+  __m256 v_burning_elev = _mm256_set1_ps(burning.elevation);
+  __m256 v_burning_dir  = _mm256_set1_ps(burning.wind_direction);
+  __m256 v_dist         = _mm256_set1_ps(distance);
+  __m256 v_elev_mean    = _mm256_set1_ps(elevation_mean);
+  __m256 v_elev_sd      = _mm256_set1_ps(elevation_sd);
+
+  __m256 v_diff = _mm256_sub_ps(v_elev, v_burning_elev);
+  __m256 v_slope = _mm256_div_ps(v_diff, v_dist);
+  __m256 v_slope_term = _mm256_sin_ps(_mm256_atan_ps(v_slope));
+
+  __m256 v_wind_term =_mm256_cos_ps(_mm256_sub_ps(v_angles, v_burning_dir));
+  __m256 v_elev_term = _mm256_div_ps(_mm256_sub_ps(v_elev, v_elev_mean), v_elev_sd);
+
+  __m256 v_linpred = _mm256_set1_ps(params.independent_pred);
+
+  // Agregamos predictores por vegetación (lookup en tiempo de compilación)
+  alignas(32) float veg_lookup[8];
+  for (int i = 0; i < 8; ++i) {
+    veg_lookup[i] = veg_pred[veg_types[i]];
+  }
+  v_linpred = _mm256_add_ps(v_linpred, _mm256_load_ps(veg_lookup));
+
+  // Otros predictores
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.fwi_pred), v_fwi, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.aspect_pred), v_aspect, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.wind_pred), v_wind_term, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.elevation_pred), v_elev_term, v_linpred);
+  v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.slope_pred), v_slope_term, v_linpred);
+
+  // Aplicamos la función logística
+  __m256 v_neg_pred = _mm256_mul_ps(v_linpred, _mm256_set1_ps(-1.0f));
+  __m256 v_prob = _mm256_div_ps(
+      _mm256_set1_ps(upper_limit),
+      _mm256_add_ps(_mm256_set1_ps(1.0f),_mm256_exp_ps(v_neg_pred))
+  );
+
+  // Aplicar la máscara de celdas quemables
+  v_prob = _mm256_mul_ps(v_prob, v_mask);
+
+  // Guardar el resultado
+  _mm256_store_ps(probs, v_prob);
 }
+
 
 
 Fire simulate_fire(
@@ -130,10 +175,11 @@ Fire simulate_fire(
   Matrix<bool> burned_bin = Matrix<bool>(n_col, n_row);
 
   float random_values[8];
-  Cell neighbour_cells[8];
   float probs[8];
   bool out_of_range;
   std::bitset<8> burnable_cell;
+  int neighbours_coords[2][8];
+
 
   __m256 rand_vec;
   __m256 prob_vec;
@@ -165,29 +211,28 @@ Fire simulate_fire(
 
       const Cell& burning_cell = landscape[{ burning_cell_0, burning_cell_1 }];
 
-      int neighbours_coords[2][8];
-
       for (size_t i = 0; i < 8; i++) {
+
         neighbours_coords[0][i] = int(burning_cell_0) + MOVES[i][0];
         neighbours_coords[1][i] = int(burning_cell_1) + MOVES[i][1];
-
 
         // Is the cell in range?
         out_of_range = 0 > neighbours_coords[0][i] || neighbours_coords[0][i] >= int(n_col) ||
                             0 > neighbours_coords[1][i] || neighbours_coords[1][i] >= int(n_row);
 
-        neighbour_cells[i] = out_of_range ? out_of_bounds_cell : landscape[{neighbours_coords[0][i], neighbours_coords[1][i]}];
+        neighbours_coords[0][i] = out_of_range ? burning_cell_0 : neighbours_coords[0][i];
+        neighbours_coords[1][i] = out_of_range ? burning_cell_1 : neighbours_coords[1][i];
 
         burnable_cell[i] = out_of_range ?
                 false :
-                (!burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] && neighbour_cells[i].burnable);
+                (!burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] && landscape.burnables[{ neighbours_coords[0][i], neighbours_coords[1][i] }]);
       }
 
       if (burnable_cell.none()) continue;  // No burnable neighbours
 
       // Burn with probability prob (Bernoulli)
       spread_probability(
-        burning_cell, neighbour_cells, params, distance, elevation_mean,
+        landscape, burning_cell, neighbours_coords, params, distance, elevation_mean,
         elevation_sd, probs, burnable_cell, upper_limit
       );
       rng.nextRandomArray(random_values);

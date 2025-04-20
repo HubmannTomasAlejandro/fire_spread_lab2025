@@ -1,5 +1,5 @@
-CXX = g++
-EXTRACXXFLAGS= -Ofast -march=native -funroll-loops -flto
+CXX = icpx
+EXTRACXXFLAGS= -Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML
 DEFINES=
 CXXFLAGS = -Wall -Wextra -Werror -fopenmp $(EXTRACXXFLAGS)
 INCLUDE = -I./src

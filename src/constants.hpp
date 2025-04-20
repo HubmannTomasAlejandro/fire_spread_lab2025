@@ -10,7 +10,7 @@ constexpr float RIGHT_ANGLE = 3 * M_PI / 2;
 constexpr float DOWN_LEFT_ANGLE = M_PI / 4;
 constexpr float DOWN_ANGLE = 0;
 constexpr float DOWN_RIGHT_ANGLE = 7 * M_PI / 4;
-constexpr float ANGLES[8] = {
+alignas(32) const float ANGLES[8] = {
     UP_LEFT_ANGLE, UP_ANGLE, UP_RIGHT_ANGLE, LEFT_ANGLE,
     RIGHT_ANGLE, DOWN_LEFT_ANGLE, DOWN_ANGLE, DOWN_RIGHT_ANGLE
 };
