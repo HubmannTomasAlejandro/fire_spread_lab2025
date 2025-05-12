@@ -81,6 +81,7 @@ def parse_perf_output(perf_output: str) -> dict:
         "user_time": r"([\d,.]+) seconds user",
         "sys_time": r"([\d,.]+) seconds sys",
         "instructions": r"([\d,]+) +instructions",
+        "cpus_utilized": r"(\d+\.\d+)\s*CPUs utilized",
     }
 
     # Convert matches into dictionary entries
@@ -180,13 +181,31 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
 
 data_file = "./data/1999_27j_S"
 
-stats = run_all_cases(30)
+#stats = run_all_cases(30)
 #stats = run_gcc_with_all_flags(data_file, 30)
-df = pd.DataFrame(stats)
+#df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
-df["flag"] = df["flag"].astype(str)
+#df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/intrinsics.csv", index=False)
+#df.to_csv(f"csv_info/intrinsics.csv", index=False)
 
 
+s = """
+          6,307.01 msec task-clock                       #    1.000 CPUs utilized
+                60      context-switches                 #    9.513 /sec
+                 0      cpu-migrations                   #    0.000 /sec
+           112,830      page-faults                      #   17.890 K/sec
+    22,762,045,754      cycles                           #    3.609 GHz
+     1,016,693,554      stalled-cycles-frontend          #    4.47% frontend cycles idle
+    45,910,568,132      instructions                     #    2.02  insn per cycle
+                                                  #    0.02  stalled cycles per insn
+     5,130,251,831      branches                         #  813.421 M/sec
+       185,799,211      branch-misses                    #    3.62% of all branches
+
+       6.309704702 seconds time elapsed
+
+       5.895923000 seconds user
+       0.411994000 seconds sys
+"""
+print(parse_perf_output(s))
