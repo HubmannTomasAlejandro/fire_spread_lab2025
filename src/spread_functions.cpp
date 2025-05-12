@@ -79,8 +79,8 @@ void inline spread_probability(
 
   // Buffers temporales para cargar datos vecinos
   alignas(32) float  elevs[8], fwis[8], aspects[8];
-  alignas(32) int    veg_types[8];
   alignas(32) float  burnable_mask[8]; // 1.0 si es quemable, 0.0 si no
+  alignas(32) float veg_lookup[8];
 
   for (int i = 0; i < 8; ++i) {
     auto idx = std::pair<size_t, size_t>{
@@ -91,7 +91,7 @@ void inline spread_probability(
     elevs[i]       = static_cast<float>(landscape.elevations[idx]);
     fwis[i]        = landscape.fwis[idx];
     aspects[i]     = landscape.aspects[idx];
-    veg_types[i]   = static_cast<int>(landscape.vegetation_types[idx]);
+    veg_lookup[i]   = veg_pred[(landscape.vegetation_types[idx])];
     burnable_mask[i] = (landscape.vegetation_types[idx] == NONE || !burnable_cell[i]) ? 0.f : 1.f;
   }
 
@@ -119,13 +119,7 @@ void inline spread_probability(
 
   __m256 v_linpred = _mm256_set1_ps(params.independent_pred);
 
-  // Agregamos predictores por vegetación (lookup en tiempo de compilación)
-  alignas(32) float veg_lookup[8];
-  for (int i = 0; i < 8; ++i) {
-    veg_lookup[i] = veg_pred[veg_types[i]];
-  }
   v_linpred = _mm256_add_ps(v_linpred, _mm256_load_ps(veg_lookup));
-
   // Otros predictores
   v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.fwi_pred), v_fwi, v_linpred);
   v_linpred = _mm256_fmadd_ps(_mm256_set1_ps(params.aspect_pred), v_aspect, v_linpred);
