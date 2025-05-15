@@ -41,8 +41,6 @@ Matrix<size_t> burned_amounts_per_cell(
         }
     }
 
-  fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
-    amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
 
   // Convert burned_amounts to Matrix<size_t>
   Matrix<size_t> burned_amounts_matrix(landscape.width, landscape.height);
@@ -51,6 +49,9 @@ Matrix<size_t> burned_amounts_per_cell(
       burned_amounts_matrix[{col, row}] = burned_amounts[col + row*landscape.width];
     }
   }
+
+  fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
+    amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
 
   return burned_amounts_matrix;
 }
