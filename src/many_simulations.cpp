@@ -22,28 +22,24 @@ Matrix<size_t> burned_amounts_per_cell(
   double t = omp_get_wtime();
 
   unsigned int amount_of_burned_cells = 0;
-  #pragma omp parallel reduction(vec_size_t_plus: burned_amounts) reduction(+: amount_of_burned_cells)
-  {
-      // Each thread gets its own private copy of burned_amounts
 
-      #pragma omp for
-      for (size_t i = 0; i < n_replicates; ++i) {
-          Fire fire = simulate_fire(
-              landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
-          );
+    #pragma omp parallel for reduction(vec_size_t_plus: burned_amounts) reduction(+: amount_of_burned_cells)
+    for (size_t i = 0; i < n_replicates; ++i) {
+        Fire fire = simulate_fire(
+            landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
+        );
 
-          amount_of_burned_cells += fire.burned_ids.size();
+        amount_of_burned_cells += fire.burned_ids.size();
 
-          for (size_t col = 0; col < landscape.width; ++col) {
-              for (size_t row = 0; row < landscape.height; ++row) {
-                  if (fire.burned_layer[{col, row}]) {
-                      size_t index = col + row * landscape.width;
-                      burned_amounts[index] += 1;
-                  }
-              }
-          }
-      }
-  }
+        for (size_t col = 0; col < landscape.width; ++col) {
+            for (size_t row = 0; row < landscape.height; ++row) {
+                if (fire.burned_layer[{col, row}]) {
+                    size_t index = col + row * landscape.width;
+                    burned_amounts[index] += 1;
+                }
+            }
+        }
+    }
 
   fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
     amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
