@@ -5,6 +5,7 @@ import pandas as pd
 import seaborn as sns
 import re
 import json
+import os
 
 #FLAGS= "-O3 -march=native -ftree-vectorize -funroll-loops -ffast-math -fopt-info-vec-optimized"
 FLAGS = "-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML"
@@ -179,7 +180,7 @@ def run_with_different_amount_of_simulations(data:str, amount_of_tries:int = 1) 
     return stats
 
 
-data_file = "./data/1999_27j_S"
+'''data_file = "./data/1999_27j_S"
 
 stats = run_all_cases(30)
 #stats = run_gcc_with_all_flags(data_file, 30)
@@ -188,6 +189,84 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/intrinsics.csv", index=False)
+df.to_csv(f"csv_info/intrinsics.csv", index=False)'''
 
 
+def run_different_num_threads(
+    data: str,
+    thread_counts: list[int],
+    flags: str = "-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML -qopenmp",
+    amount_of_tries: int = 30,
+    compiler: str = "icpx",
+) -> list[dict]:
+    """
+    Ejecuta perf stat sobre el ejecutable compilado con distintas banderas y distintos números de hilos.
+
+    Parámetros:
+    - data: argumentos de entrada para el ejecutable (tamaño del problema u otros).
+    - thread_counts: lista de valores de OMP_NUM_THREADS a probar.
+    - amount_of_tries: número de repeticiones para cada configuración.
+    - compiler: compilador a usar para make.
+    """
+    all_stats = []
+
+    # Compila con la bandera actual
+    subprocess.run("make clean", shell=True)
+    subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
+
+    for p in thread_counts:
+        perf_stats = {}
+        # Ajusta número de hilos
+        env = os.environ.copy()
+        env["OMP_NUM_THREADS"] = str(p)
+
+        # Repetir para obtener métricas
+        for _ in range(amount_of_tries):
+            result = subprocess.run(
+                f"perf stat ./{CODE_FILE} {data}",
+                shell=True,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env
+            )
+            metrics = parse_perf_output(result.stderr)
+
+            if not perf_stats:
+                perf_stats = metrics.copy()
+            else:
+                for key, value in metrics.items():
+                    if key in perf_stats:
+                        if key in VALUES_TO_MINIMIZE:
+                            perf_stats[key] = min(perf_stats[key], value)
+                        elif key in VALUES_TO_MAXIMIZE:
+                            perf_stats[key] = max(perf_stats[key], value)
+                        else:
+                            # Acumular suma para promedio
+                            perf_stats[key] += value
+                    else:
+                        perf_stats[key] = value
+
+        # Promediar métricas que no son min/max
+        for key in list(perf_stats.keys()):
+            if key not in VALUES_TO_MINIMIZE and key not in VALUES_TO_MAXIMIZE:
+                perf_stats[key] /= amount_of_tries
+
+        # Añadir información de flag y hilos
+        perf_stats.update({
+            "flag": flags,
+            "threads": p
+        })
+        all_stats.append(perf_stats.copy())
+
+    return all_stats
+
+data_file = "./data/1999_27j_S"
+
+stats = run_different_num_threads(data_file, [1, 2, 4, 8, 16, 32], amount_of_tries=30)
+#stats = run_gcc_with_all_flags(data_file, 30, compiler="icpx")
+df = pd.DataFrame(stats)
+
+# Convertir la columna de flags a string para mejor visualización en los gráficos
+df["flag"] = df["flag"].astype(str)
+
+df.to_csv(f"csv_info/try_threads.csv", index=False)

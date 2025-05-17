@@ -138,5 +138,31 @@ df_type = [
     "Lab 2"
     ]
 
-palette = ["#5caee3", "#ffb347", "#f25c54"]
-float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Evolucion de rendimiento")
+#palette = ["#5caee3", "#ffb347", "#f25c54"]
+#float_double(df_to_use=df_to_use, df_type=df_type, palette=palette ,title="Evolucion de rendimiento")
+
+
+
+def draw_threads_grafic(df:pd.DataFrame, best_metric:float):
+    ejes = ["cells_procesed_per_micro_sec", "threads"]
+
+    efficiency = [ s/p for s,p in zip(ejes[0], ejes[1]) ]
+
+    # Threads vs cells_procesed_per_micro_sec
+    plt.figure()
+    plt.plot(df[ejes[1]], df[ejes[0]], marker='o', color='darkviolet')
+    plt.plot(df[ejes[1]], best_metric, linestyle='--', color='grey', label='Best result')
+    plt.xlabel(f'{ejes[1]}')
+    plt.ylabel(f'{ejes[0]} (µs/cell)')
+    plt.title('cells_procesed_per_micro_sec vs threads')
+    plt.legend()
+    plt.grid(True)
+
+    # Threads vs Eficiency
+    plt.figure()
+    plt.plot(df[ejes[1]], efficiency, marker='o', color='limegreen')
+    plt.xlabel(f'{ejes[1]}')
+    plt.ylabel('Eficiency')
+    plt.title('Eficiency vs threads')
+    plt.legend()
+    plt.grid(True)
