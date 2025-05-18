@@ -201,6 +201,7 @@ Fire simulate_fire(
 
     // b is going to keep the position in burned_ids that have to be evaluated
     // in this burn cycle
+    #pragma omp parallel for schedule(dynamic)
     for (size_t b = start; b < end; b++) {
 
       size_t burning_cell_0 = burned_ids[b].first;
@@ -249,10 +250,12 @@ Fire simulate_fire(
       // Proceed only if at least one cell burns
       if (mask==0) continue;
 
+
       for (size_t i = 0; i < 8; i++) {
-        if ((mask >> i) & 1) {  // If the cell should burn
-            burned_ids.push_back({ neighbours_coords[0][i], neighbours_coords[1][i] });
-            burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] = true;  // Mark as burned
+        auto coord = std::make_pair(neighbours_coords[0][i], neighbours_coords[1][i]);
+        if ((mask >> i) & 1 && !burned_bin[cord]) {  // If the cell should burn
+            burned_ids.push_back(cord);
+            burned_bin[cord] = true;  // Mark as burned
             end_forward++;  // Increase the count of burned cells
         }
     }
