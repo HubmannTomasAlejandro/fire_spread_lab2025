@@ -23,7 +23,7 @@ Matrix<size_t> burned_amounts_per_cell(
 
   unsigned int amount_of_burned_cells = 0;
 
-    #pragma omp parallel for reduction(vec_size_t_plus: burned_amounts) reduction(+: amount_of_burned_cells)
+    #pragma omp parallel for schedule(dynamic) reduction(vec_size_t_plus: burned_amounts) reduction(+: amount_of_burned_cells)
     for (size_t i = 0; i < n_replicates; ++i) {
         Fire fire = simulate_fire(
             landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
