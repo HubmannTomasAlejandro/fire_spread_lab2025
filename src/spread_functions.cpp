@@ -253,9 +253,9 @@ Fire simulate_fire(
 
       for (size_t i = 0; i < 8; i++) {
         auto coord = std::make_pair(neighbours_coords[0][i], neighbours_coords[1][i]);
-        if ((mask >> i) & 1 && !burned_bin[cord]) {  // If the cell should burn
-            burned_ids.push_back(cord);
-            burned_bin[cord] = true;  // Mark as burned
+        if ((mask >> i) & 1 && !burned_bin[coord]) {  // If the cell should burn
+            burned_ids.push_back(coord);
+            burned_bin[coord] = true;  // Mark as burned
             end_forward++;  // Increase the count of burned cells
         }
     }
