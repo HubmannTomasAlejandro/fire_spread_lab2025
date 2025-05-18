@@ -188,6 +188,6 @@ df = pd.DataFrame(stats)
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/intrinsics.csv", index=False)
+df.to_csv(f"csv_info/schedule_dynamic.csv", index=False)
 
 
