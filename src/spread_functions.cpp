@@ -250,14 +250,19 @@ Fire simulate_fire(
       // Proceed only if at least one cell burns
       if (mask==0) continue;
 
-
-      for (size_t i = 0; i < 8; i++) {
-        auto coord = std::make_pair(neighbours_coords[0][i], neighbours_coords[1][i]);
-        if ((mask >> i) & 1 && !burned_bin[coord]) {  // If the cell should burn
+      #pragma omp critical
+      {
+        // Add the burning cells to the burned_ids vector
+        for (size_t i = 0; i < 8; i++) {
+          auto coord = std::make_pair(neighbours_coords[0][i], neighbours_coords[1][i]);
+          if ((mask >> i) & 1 && !burned_bin[coord]) {  // If the cell should burn
             burned_ids.push_back(coord);
             burned_bin[coord] = true;  // Mark as burned
             end_forward++;  // Increase the count of burned cells
+          }
         }
+      }
+
     }
   }
 
