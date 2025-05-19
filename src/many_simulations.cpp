@@ -17,13 +17,12 @@ Matrix<size_t> burned_amounts_per_cell(
     double upper_limit, size_t n_replicates
 ) {
 
-  std::vector<size_t> burned_amounts(landscape.width * landscape.height, 0);
+  Matrix<size_t> burned_amounts_matrix(landscape.width, landscape.height);
 
   double t = omp_get_wtime();
 
   unsigned int amount_of_burned_cells = 0;
 
-    #pragma omp parallel for reduction(vec_size_t_plus: burned_amounts) reduction(+: amount_of_burned_cells)
     for (size_t i = 0; i < n_replicates; ++i) {
         Fire fire = simulate_fire(
             landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
@@ -34,21 +33,12 @@ Matrix<size_t> burned_amounts_per_cell(
         for (size_t col = 0; col < landscape.width; ++col) {
             for (size_t row = 0; row < landscape.height; ++row) {
                 if (fire.burned_layer[{col, row}]) {
-                    size_t index = col + row * landscape.width;
-                    burned_amounts[index] += 1;
+                  burned_amounts_matrix[{col, row}] += 1;
                 }
             }
         }
     }
 
-
-  // Convert burned_amounts to Matrix<size_t>
-  Matrix<size_t> burned_amounts_matrix(landscape.width, landscape.height);
-  for (size_t col = 0; col < landscape.width; col++) {
-    for (size_t row = 0; row < landscape.height; row++) {
-      burned_amounts_matrix[{col, row}] = burned_amounts[col + row*landscape.width];
-    }
-  }
 
   fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
     amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
