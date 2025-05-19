@@ -264,15 +264,15 @@ Fire simulate_fire(
       }
 
     }
-  }
 
-    // update start and end
-    start = end;
-    end = end_forward;
-    burning_size = end - start;
 
-    burned_ids_steps.push_back(end);
-  }
+      // update start and end
+      start = end;
+      end = end_forward;
+      burning_size = end - start;
+
+      burned_ids_steps.push_back(end);
+    }
 
   return { n_col, n_row, burned_bin, burned_ids, burned_ids_steps };
 }
