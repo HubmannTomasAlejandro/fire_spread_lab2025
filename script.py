@@ -262,11 +262,12 @@ def run_different_num_threads(
 
 data_file = "./data/1999_27j_S"
 
-stats = run_different_num_threads(data_file, [1, 2, 4, 8, 16, 32], amount_of_tries=30)
+#stats = run_different_num_threads(data_file, [1, 2, 4, 8, 16, 32], amount_of_tries=30)
 #stats = run_gcc_with_all_flags(data_file, 30, compiler="icpx")
+stats = run_all_cases(30)
 df = pd.DataFrame(stats)
 
 # Convertir la columna de flags a string para mejor visualización en los gráficos
 df["flag"] = df["flag"].astype(str)
 
-df.to_csv(f"csv_info/try_threads.csv", index=False)
+df.to_csv(f"csv_info/try_spread_functions.csv", index=False)
