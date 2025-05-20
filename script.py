@@ -210,12 +210,13 @@ def run_different_num_threads(
     """
     all_stats = []
 
-    # Compila con la bandera actual
-    subprocess.run("make clean", shell=True)
-    subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
 
     for p in thread_counts:
         perf_stats = {}
+
+        # Compila con la bandera actual
+        subprocess.run("make clean", shell=True)
+        subprocess.run(f"make CXX={compiler} EXTRACXXFLAGS='{flags}'", shell=True)
         # Ajusta número de hilos
         env = os.environ.copy()
         env["OMP_NUM_THREADS"] = str(p)

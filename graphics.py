@@ -144,25 +144,33 @@ df_type = [
 
 
 def draw_threads_grafic(df:pd.DataFrame, best_metric:float):
-    ejes = ["cells_procesed_per_micro_sec", "threads"]
+    cell_metric = df["cells_procesed_per_micro_sec"]
+    threads = df["threads"]
 
-    efficiency = [ s/p for s,p in zip(ejes[0], ejes[1]) ]
+    efficiency = [ s/p for s,p in zip(cell_metric, threads) ]
 
     # Threads vs cells_procesed_per_micro_sec
-    plt.figure()
-    plt.plot(df[ejes[1]], df[ejes[0]], marker='o', color='darkviolet')
-    plt.plot(df[ejes[1]], best_metric, linestyle='--', color='grey', label='Best result')
-    plt.xlabel(f'{ejes[1]}')
-    plt.ylabel(f'{ejes[0]} (µs/cell)')
+    plt.figure(figsize=(12, 6))
+    plt.plot(threads, cell_metric, marker='o', color='darkviolet')
+    plt.plot(threads, [best_metric]*len(threads), linestyle='--', color='red', label='Best result')
+    plt.xlabel('Threads')
+    plt.ylabel('cells_procesed_per_micro_sec (µs/cell)')
     plt.title('cells_procesed_per_micro_sec vs threads')
     plt.legend()
     plt.grid(True)
+    plt.savefig('threads_2011_cell.png', dpi=300)
+    plt.show()
 
     # Threads vs Eficiency
-    plt.figure()
-    plt.plot(df[ejes[1]], efficiency, marker='o', color='limegreen')
-    plt.xlabel(f'{ejes[1]}')
+    plt.figure(figsize=(12, 6))
+    plt.plot(threads, efficiency, marker='o', color='limegreen')
+    plt.xlabel('Threads')
     plt.ylabel('Eficiency')
     plt.title('Eficiency vs threads')
-    plt.legend()
     plt.grid(True)
+    plt.savefig('threads_2011_ef.png', dpi=300)
+    plt.show()
+
+
+df1 = pd.read_csv("./csv_info/try_threads_omp2.csv")
+draw_threads_grafic(df1, best_metric=1.447868)
