@@ -51,6 +51,7 @@ def parse_perf_output(perf_output: str) -> dict:
 
     # Define regex patterns for extracting metrics
     patterns = {
+        "percent_of_burned_cells" : r"percent of burned cells:\s*([\d\.]+)",
         "cells_procesed_per_micro_sec": r"cells_burned_per_micro_sec:\s*([\d\.]+)",
         "cycles": r"([\d,]+) +cycles",
         "insn_per_cycle": r"([\d,.]+) +insn per cycle",
@@ -110,6 +111,7 @@ def run_all_cases(amount_of_tries:int = 1) -> list:
             amount_of_tries = 5
         else:
             amount_of_tries = 30
+        amount_of_tries = 1
         for n in range(amount_of_tries):
             print(f"Try number {n}")
             result = subprocess.run(f"perf stat ./{CODE_FILE} {data[0]}", shell=True, stderr=subprocess.PIPE, text=True)

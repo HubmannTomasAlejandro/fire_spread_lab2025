@@ -28,6 +28,9 @@ Matrix<size_t> burned_amounts_per_cell(
     }
   }
 
+  double percent_of_burned_cells = double(amount_of_burned_cells) / (n_replicates * landscape.width * landscape.height);
+  fprintf(stderr,"percent of burned cells: %lf\n",
+    percent_of_burned_cells);
   fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
     amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));
 
