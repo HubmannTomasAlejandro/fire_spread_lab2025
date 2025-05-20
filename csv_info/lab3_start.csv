@@ -1,11 +1,11 @@
-cells_procesed_per_micro_sec,cycles,insn_per_cycle,branches,branch_misses,time_elapsed,user_time,sys_time,instructions,flag,data_name,size_of_matrix
-6.843528,22585719572,2.01,5043290692,184980996,6.274344543,5.884523,0.37187,45369743268,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/1999_27j_S,1483274
-7.16487,1293791133,2.13,315675791,12414697,0.359403912,0.311865,0.016036,2743377989,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/1999_28,94188
-5.875302,42468608,2.31,15279893,452099,0.012940827,0.003339,0.0,97940029,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2000_8,8008
-4.953005,54852565,2.59,23850367,522560,0.016558056,0.006854,0.0,141791946,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2005_6,14161
-4.854427,16805115,1.97,5778883,226420,0.005507501,0.0,0.0,33049416,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2005_26,2548
-7.593864,661591228,2.0,135812711,6632724,0.184496332,0.137729,0.011863,1321092256,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2009_3,15912
-0.446118,124327658,3.09,69048158,933007,0.036455037,0.018952,0.0,384338333,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2011_19E,48614
-1.447868,40666835,2.75,19996940,370266,0.012421084,0.003202,0.0,111798687,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2011_19W,13125
-6.915782,256830816861,1.9,50320629608,1997387873,71.332332628,66.638507,4.269488,486797513757,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2015_50,10434109
-6.957103,59707604490,2.09,14038941404,459740820,16.618188501,16.115714,0.443857,124630664981,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2021_865,4696595
+cells_procesed_per_micro_sec,cycles,insn_per_cycle,branches,branch_misses,time_elapsed,user_time,sys_time,instructions,flag,data_name,size_of_matrix,percent_of_burned_cells
+6.843528,22585719572,2.01,5043290692,184980996,6.274344543,5.884523,0.37187,45369743268,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/1999_27j_S,1483274,0.248
+7.16487,1293791133,2.13,315675791,12414697,0.359403912,0.311865,0.016036,2743377989,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/1999_28,94188,0.257
+5.875302,42468608,2.31,15279893,452099,0.012940827,0.003339,0.0,97940029,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2000_8,8008,0.035
+4.953005,54852565,2.59,23850367,522560,0.016558056,0.006854,0.0,141791946,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2005_6,14161,0.015
+4.854427,16805115,1.97,5778883,226420,0.005507501,0.0,0.0,33049416,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2005_26,2548,0.021
+7.593864,661591228,2.0,135812711,6632724,0.184496332,0.137729,0.011863,1321092256,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2009_3,15912,0.813
+0.446118,124327658,3.09,69048158,933007,0.036455037,0.018952,0.0,384338333,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2011_19E,48614,0.001
+1.447868,40666835,2.75,19996940,370266,0.012421084,0.003202,0.0,111798687,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2011_19W,13125,0.002
+6.915782,256830816861,1.9,50320629608,1997387873,71.332332628,66.638507,4.269488,486797513757,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2015_50,10434109,0.444
+6.957103,59707604490,2.09,14038941404,459740820,16.618188501,16.115714,0.443857,124630664981,-Ofast -march=native -funroll-loops -flto -mavx2 -fveclib=SVML,./data/2021_865,4696595,0.216

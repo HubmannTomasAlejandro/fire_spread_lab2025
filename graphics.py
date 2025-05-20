@@ -105,6 +105,7 @@ def float_double (df_to_use, df_type, palette, title):
     for i in range (len(df_to_use)):
         df = pd.read_csv(df_to_use[i])
         # Agregar una columna para identificar el tipo de dato
+        df['burned_cells'] = round(df['percent_of_burned_cells'] * df['size_of_matrix'])
         df["Tipo"] = df_type[i]
         # Combinar los DataFrames
         if i == 0:
@@ -113,9 +114,9 @@ def float_double (df_to_use, df_type, palette, title):
             df_final = pd.concat([df_final, df])
     # Graficar usando Seaborn
     plt.figure(figsize=(18, 6))
-    sns.barplot(data=df_final, x="data_name", y="cells_procesed_per_micro_sec", hue="Tipo", palette=palette)
+    sns.barplot(data=df_final, x="burned_cells", y="cells_procesed_per_micro_sec", hue="Tipo", palette=palette)
     # Personalización del gráfico
-    plt.xlabel("Data Name")
+    plt.xlabel("Amount of burned cells")
     plt.ylabel("cells_procesed_per_micro_sec (µs/cell)")
     plt.title(title)
     plt.legend(title="Tipo de dato")
@@ -127,15 +128,15 @@ def float_double (df_to_use, df_type, palette, title):
 
 
 df_to_use = [
-            "./csv_info/original_performance.csv",
-            "./csv_info/run_all_cases_opt_post_presentacion.csv",
-            "./csv_info/intrinsics.csv",
+            "./csv_info/lab3_start.csv",
+            "./csv_info/schedle_static.csv",
+            "./csv_info/schedule_dynamic.csv",
             ]
 
 df_type = [
-    "sin optimización",
-    "Lab 1",
-    "Lab 2"
+    "Inicio Lab 3",
+    "Schedule estático",
+    "Schedule dinámico",
     ]
 
 palette = ["#5caee3", "#ffb347", "#f25c54"]
