@@ -88,11 +88,11 @@ void inline spread_probability(
       static_cast<size_t>(neighbours[1][i])
     };
 
-    elevs[i]       = static_cast<float>(landscape.elevations[idx]);
-    fwis[i]        = landscape.fwis[idx];
-    aspects[i]     = landscape.aspects[idx];
-    veg_types[i]   = static_cast<int>(landscape.vegetation_types[idx]);
-    burnable_mask[i] = (landscape.vegetation_types[idx] == NONE || !burnable_cell[i]) ? 0.f : 1.f;
+    elevs[i]       = static_cast<float>(landscape[idx].elevation);
+    fwis[i]        = landscape[idx].fwi;
+    aspects[i]     = landscape[idx].aspect;
+    veg_types[i]   = static_cast<int>(landscape[idx].vegetation_type);
+    burnable_mask[i] = (landscape[idx].vegetation_type == NONE || !burnable_cell[i]) ? 0.f : 1.f;
   }
 
   // Cargar en vectores AVX datos de los vecinos
@@ -225,7 +225,7 @@ Fire simulate_fire(
 
         burnable_cell[i] = out_of_range ?
                 false :
-                (!burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] && landscape.burnables[{ neighbours_coords[0][i], neighbours_coords[1][i] }]);
+                (!burned_bin[{ neighbours_coords[0][i], neighbours_coords[1][i] }] && landscape[{ neighbours_coords[0][i], neighbours_coords[1][i] }].burnable);
       }
 
       if (burnable_cell.none()) continue;  // No burnable neighbours
