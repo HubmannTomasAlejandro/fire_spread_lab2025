@@ -92,7 +92,7 @@ void inline spread_probability(
     fwis[i]        = landscape[idx].fwi;
     aspects[i]     = landscape[idx].aspect;
     veg_types[i]   = static_cast<int>(landscape[idx].vegetation_type);
-    burnable_mask[i] = (landscape[idx].vegetation_type == NONE || !burnable_cell[i]) ? 0.f : 1.f;
+    burnable_mask[i] =  !burnable_cell[i] ? 0.f : 1.f;
   }
 
   // Cargar en vectores AVX datos de los vecinos
