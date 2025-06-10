@@ -34,3 +34,12 @@ struct Landscape {
 
   Matrix<Cell> cells;
 };
+
+struct DeviceCell {
+  short elevation;
+  float wind_direction;
+  uint8_t burnable;      // ocupa 1 byte
+  int vegetation_type;
+  float fwi;
+  float aspect;
+};
