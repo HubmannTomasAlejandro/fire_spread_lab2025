@@ -32,10 +32,12 @@ CUDA_CALLABLE float spread_probability_scalar(
     float angle,
     float upper_limit
 ) {
-    static const float veg_pred[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
-    veg_pred[static_cast<int>(VegetationType::SUBALPINE)] = params.subalpine_pred;
-    veg_pred[static_cast<int>(VegetationType::WET)] = params.wet_pred;
-    veg_pred[static_cast<int>(VegetationType::DRY)] = params.dry_pred;
+    static const float veg_pred[5] = {0.f, 
+                                      params.subalpine_pred,
+                                      params.wet_pred, 
+                                      params.dry_pred, 
+                                      0.f};
+    
 
     if (!neighbor.burnable) return 0.0f;
 
@@ -143,7 +145,7 @@ void simulate_fire_cuda(
     // Copiar datos al dispositivo
     Cell* d_landscape;
     cudaMalloc(&d_landscape, num_cells * sizeof(Cell));
-    cudaMemcpy(d_landscape, landscape.cells.data(), num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_landscape, landscape.cells[{0,0}], num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
 
     bool* d_burned_bin;
     cudaMalloc(&d_burned_bin, num_cells * sizeof(bool));
@@ -216,24 +218,21 @@ void simulate_fire_cuda(
     }
 
     // Recuperar matriz quemada
-    Matrix<bool> burned_bin(width, height);
-    cudaMemcpy(burned_bin.data(), d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
+    Matrix<bool> burned_layer(width, height);
+    cudaMemcpy(burned_layer.data(), d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
 
-    // Construir resultado
-    result = {
-        width,
-        height,
-        burned_bin,
-        burned_ids,
-        burned_steps
-    };
+    // Construir resultado 
+    result.width = width;
+    result.height = height;
+    result.burned_layer = std::move(burned_layer);  // Mover para evitar copia
+    result.burned_ids = std::move(burned_ids);
+    result.burned_ids_steps = std::move(burned_steps);
 
     // Liberar memoria
     cudaFree(d_landscape);
     cudaFree(d_burned_bin);
     cudaFree(d_rng_states);
 }
-
 // Función principal
 Fire simulate_fire(
     const Landscape& landscape,
