@@ -22,8 +22,11 @@ mains = graphics/burned_probabilities_data graphics/fire_animation_data
 
 all: $(mains)
 
-src/%.o: src/%.cpp $(headers)
-	$(CXXCMD) -c $< -o $@
+src/%.o: src/%.cu $(headers)
+	$(NVCC) $(CUINC) $(CUDAFLAGS) -Xcompiler -fPIC -c $< -o $@
+
+LDFLAGS := -L/usr/local/cuda/lib64 -lcudart -qopenmp
+-include $(wildcard src/*.d)
 
 src/%.cu.o: src/%.cu $(headers)
 	$(NVCC) $(CUINC) $(CUDAFLAGS) -c $< -o $@
