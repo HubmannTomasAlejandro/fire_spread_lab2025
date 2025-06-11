@@ -1,251 +1,254 @@
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+#include "spread_functions.hpp"
+
+#define _USE_MATH_DEFINES
 #include <cmath>
+#include <random>
 #include <vector>
 #include <cstdint>
-#include "constants.hpp"  
+#include <iostream>
+#include <bitset>
+#include <cstddef>
+#include <cuda_runtime.h>
+#include <curand_kernel.h>
 
-// --- Data structures on device/host ---
-struct SimulationParams {
-    float independent_pred;
-    float wind_pred;
-    float elevation_pred;
-    float slope_pred;
-    float subalpine_pred;
-    float wet_pred;
-    float dry_pred;
-    float fwi_pred;
-    float aspect_pred;
-};
+#include "fires.hpp"
+#include "landscape.hpp"
+#include "constants.hpp"
 
-enum VegetationType : uint8_t {
-    MATORRAL = 0,
-    SUBALPINE,
-    WET,
-    DRY
-};
+// Ángulos de dirección para vecinos (constante global)
+__constant__ float DEV_ANGLES[8];
 
-struct Cell {
-    short elevation;
-    float wind_direction;
-    bool burnable;
-    VegetationType vegetation_type;
-    float fwi;
-    float aspect;
-};
+// Movimientos para vecinos (constante global)
+__constant__ int DEV_MOVES[8][2];
 
-// --- Device functions ---
-__device__ inline void spread_probability(
-    const Cell* __restrict__ grid,
-    int width, int height,
-    int base_x, int base_y,
-    int neighbours_x[8], int neighbours_y[8],
-    const SimulationParams params,
+// Función de probabilidad escalar (compatible CPU/GPU)
+CUDA_CALLABLE float spread_probability_scalar(
+    const Cell& burning,
+    const Cell& neighbor,
+    const SimulationParams& params,
     float distance,
-    float elev_mean,
-    float elev_sd,
-    float* __restrict__ probs,
-    unsigned char burnable_mask,
-    float upper_limit = 1.0f
+    float elevation_mean,
+    float elevation_sd,
+    float angle,
+    float upper_limit
 ) {
-    // predictor by vegetation type
-    float veg_pred[4] = {
-        0.f,
-        params.subalpine_pred,
-        params.wet_pred,
-        params.dry_pred
-    };
+    static const float veg_pred[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
+    veg_pred[static_cast<int>(VegetationType::SUBALPINE)] = params.subalpine_pred;
+    veg_pred[static_cast<int>(VegetationType::WET)] = params.wet_pred;
+    veg_pred[static_cast<int>(VegetationType::DRY)] = params.dry_pred;
 
-    float elevs[8], fwis[8], aspects[8];
-    uint8_t vegs[8];
-    float mask_f[8];
+    if (!neighbor.burnable) return 0.0f;
 
-    // gather neighbor data
-    #pragma unroll
-    for (int i = 0; i < 8; ++i) {
-        int idx = neighbours_y[i] * width + neighbours_x[i];
-        Cell c = grid[idx];
-        elevs[i]       = float(c.elevation);
-        fwis[i]        = c.fwi;
-        aspects[i]     = c.aspect;
-        vegs[i]        = uint8_t(c.vegetation_type);
-        mask_f[i]      = ((burnable_mask >> i) & 1) ? 1.f : 0.f;
-    }
+    float slope = (neighbor.elevation - burning.elevation) / distance;
+    float slope_term = std::sin(std::atan(slope));
+    float wind_term = std::cos(angle - burning.wind_direction);
+    float elev_term = (neighbor.elevation - elevation_mean) / elevation_sd;
 
-    // load broadcasted burning cell data
-    Cell bcell = grid[ base_y * width + base_x ];
-    float b_elev = float(bcell.elevation);
-    float b_dir  = bcell.wind_direction;
+    float linear_pred = params.independent_pred;
+    linear_pred += veg_pred[static_cast<int>(neighbor.vegetation_type)];
+    linear_pred += params.fwi_pred * neighbor.fwi;
+    linear_pred += params.aspect_pred * neighbor.aspect;
+    linear_pred += params.wind_pred * wind_term;
+    linear_pred += params.elevation_pred * elev_term;
+    linear_pred += params.slope_pred * slope_term;
 
-    #pragma unroll
-    for (int i = 0; i < 8; ++i) {
-        float diff  = elevs[i] - b_elev;
-        float slope = diff / distance;
-        float sin_slope = sinf(atanf(slope));
-        float wind_term  = cosf(ANGLES[i] - b_dir);
-        float elev_term  = (elevs[i] - elev_mean) / elev_sd;
-
-        // linear predictor
-        float lin = params.independent_pred
-            + veg_pred[ vegs[i] ]
-            + params.fwi_pred     * fwis[i]
-            + params.aspect_pred  * aspects[i]
-            + params.wind_pred    * wind_term
-            + params.elevation_pred * elev_term
-            + params.slope_pred   * sin_slope;
-
-        // logistic
-        float prob = upper_limit / (1.0f + expf(-lin));
-        probs[i] = prob * mask_f[i];
-    }
+    float prob = upper_limit / (1.0f + std::exp(-linear_pred));
+    return prob;
 }
 
-// kernel to process one burning cell
-__global__ void propagate_kernel(
-    const Cell* grid,
-    int width, int height,
+// Kernel CUDA para simular propagación
+__global__ void fire_spread_kernel(
+    const Cell* landscape,
+    bool* burned_bin,
+    const std::pair<size_t, size_t>* burning_cells,
+    size_t num_burning,
+    size_t width,
+    size_t height,
     const SimulationParams params,
-    float distance, float elev_mean, float elev_sd,
-    int* d_neigh_x, int* d_neigh_y,
-    bool* d_burned,
-    int num_active,
-    int* active_x,
-    int* active_y,
-    int* new_active_x,
-    int* new_active_y,
+    float distance,
+    float elevation_mean,
+    float elevation_sd,
+    float upper_limit,
+    curandState_t* rng_states,
+    std::pair<size_t, size_t>* new_burning,
     int* new_count
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= num_active) return;
+    if (idx >= num_burning * 8) return;
 
-    int bx = active_x[idx];
-    int by = active_y[idx];
-    unsigned char mask = 0;
-    int nxs[8], nys[8];
+    int cell_idx = idx / 8;
+    int neighbor_idx = idx % 8;
 
-    // compute neighbours
-    #pragma unroll
-    for (int i = 0; i < 8; ++i) {
-        int nx = bx + MOVES[i][0];
-        int ny = by + MOVES[i][1];
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
-            nxs[i] = bx; nys[i] = by;
-        } else {
-            nxs[i] = nx; nys[i] = ny;
-            int nidx = ny * width + nx;
-            if (!d_burned[nidx] && grid[nidx].burnable)
-                mask |= (1 << i);
-        }
+    auto cell = burning_cells[cell_idx];
+    int neighbor_i = cell.first + DEV_MOVES[neighbor_idx][0];
+    int neighbor_j = cell.second + DEV_MOVES[neighbor_idx][1];
+
+    if (neighbor_i < 0 || neighbor_i >= height || neighbor_j < 0 || neighbor_j >= width) {
+        return;
     }
 
-    if (mask == 0) return;
+    size_t neighbor_linear = neighbor_i * width + neighbor_j;
+    Cell neighbor_cell = landscape[neighbor_linear];
+    if (!neighbor_cell.burnable || burned_bin[neighbor_linear]) {
+        return;
+    }
 
-    float probs[8];
-    spread_probability(
-        grid, width, height,
-        bx, by,
-        nxs, nys,
+    float prob = spread_probability_scalar(
+        landscape[cell.first * width + cell.second],
+        neighbor_cell,
         params,
-        distance, elev_mean, elev_sd,
-        probs,
-        mask
+        distance,
+        elevation_mean,
+        elevation_sd,
+        DEV_ANGLES[neighbor_idx],
+        upper_limit
     );
 
-    // RNG: simple LCG per thread
-    uint state = idx ^ 0xA3C59AC3;
-    #pragma unroll
-    for (int i = 0; i < 8; ++i) {
-        float rnd = (state = state * 1664525u + 1013904223u) / float(0xFFFFFFFFu);
-        if ( (mask & (1<<i)) && rnd < probs[i] ) {
-            int out_idx = atomicAdd(new_count, 1);
-            new_active_x[out_idx] = nxs[i];
-            new_active_y[out_idx] = nys[i];
-            d_burned[ nys[i] * width + nxs[i] ] = true;
+    curandState_t local_state = rng_states[idx];
+    float rand_val = curand_uniform(&local_state);
+    rng_states[idx] = local_state;
+
+    if (rand_val < prob) {
+        int old = atomicCAS(&burned_bin[neighbor_linear], false, true);
+        if (!old) {
+            int pos = atomicAdd(new_count, 1);
+            new_burning[pos] = {neighbor_i, neighbor_j};
         }
     }
 }
 
-// --- Host wrapper ---
-Fire simulate_fire_cuda(
-    const std::vector<Cell>& h_cells,
-    size_t width, size_t height,
-    const std::vector<std::pair<size_t,size_t>>& ignition,
-    const SimulationParams& params,
-    float distance, float elev_mean, float elev_sd
+// Inicializar estados RNG
+__global__ void setup_rng_kernel(curandState_t* state, unsigned long seed, size_t n) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        curand_init(seed, idx, 0, &state[idx]);
+    }
+}
+
+// Implementación principal usando CUDA
+void simulate_fire_cuda(
+    const Landscape& landscape,
+    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
+    SimulationParams params,
+    float distance,
+    float elevation_mean,
+    float elevation_sd,
+    float upper_limit,
+    Fire& result
 ) {
-    size_t N = width * height;
-    Cell* d_cells;
-    bool* d_burned;
+    size_t width = landscape.width;
+    size_t height = landscape.height;
+    size_t num_cells = width * height;
 
-    cudaMalloc(&d_cells, N * sizeof(Cell));
-    cudaMemcpy(d_cells, h_cells.data(), N * sizeof(Cell), cudaMemcpyHostToDevice);
+    // Copiar datos al dispositivo
+    Cell* d_landscape;
+    cudaMalloc(&d_landscape, num_cells * sizeof(Cell));
+    cudaMemcpy(d_landscape, landscape.cells.data(), num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&d_burned, N * sizeof(bool));
-    cudaMemset(d_burned, 0, N * sizeof(bool));
+    bool* d_burned_bin;
+    cudaMalloc(&d_burned_bin, num_cells * sizeof(bool));
+    cudaMemset(d_burned_bin, 0, num_cells * sizeof(bool));
 
-    // allocate active lists
-    int max_cells = N;
-    int *d_act_x0, *d_act_y0, *d_act_x1, *d_act_y1;
-    cudaMalloc(&d_act_x0, max_cells * sizeof(int));
-    cudaMalloc(&d_act_y0, max_cells * sizeof(int));
-    cudaMalloc(&d_act_x1, max_cells * sizeof(int));
-    cudaMalloc(&d_act_y1, max_cells * sizeof(int));
-    int *d_new_count;
-    cudaMalloc(&d_new_count, sizeof(int));
+    // Configurar constantes
+    cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
+    cudaMemcpyToSymbol(DEV_MOVES, MOVES, 8 * 2 * sizeof(int));
 
-    // copy ignition
-    int h_count = ignition.size();
-    std::vector<int> h_ix(h_count), h_iy(h_count);
-    for (int i = 0; i < h_count; ++i) {
-        h_ix[i] = ignition[i].first;
-        h_iy[i] = ignition[i].second;
-        int idx = h_iy[i]*width + h_ix[i];
-        // mark burned
-        cudaMemcpy(d_burned + idx, &(bool){true}, sizeof(bool), cudaMemcpyHostToDevice);
+    // Inicializar celdas de ignición
+    std::vector<std::pair<size_t, size_t>> current_burning = ignition_cells;
+    for (const auto& cell : ignition_cells) {
+        size_t idx = cell.first * width + cell.second;
+        cudaMemset(d_burned_bin + idx, true, sizeof(bool));
     }
-    cudaMemcpy(d_act_x0, h_ix.data(), h_count*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_act_y0, h_iy.data(), h_count*sizeof(int), cudaMemcpyHostToDevice);
 
-    int cur_count = h_count;
-    int *active_x = d_act_x0, *active_y = d_act_y0;
-    int *next_x   = d_act_x1, *next_y   = d_act_y1;
+    // Configurar RNG
+    curandState_t* d_rng_states;
+    size_t max_threads = ignition_cells.size() * 8;
+    cudaMalloc(&d_rng_states, max_threads * sizeof(curandState_t));
+    setup_rng_kernel<<<(max_threads+255)/256, 256>>>(d_rng_states, 12345, max_threads);
 
-    std::vector<std::pair<size_t,size_t>> burned_list = ignition;
-    std::vector<size_t> steps = { (size_t)h_count };
+    // Buffers para celdas quemadas
+    std::vector<std::pair<size_t, size_t>> burned_ids = ignition_cells;
+    std::vector<size_t> burned_steps;
+    burned_steps.push_back(ignition_cells.size());
 
-    while (cur_count > 0) {
+    // Bucle de propagación
+    while (!current_burning.empty()) {
+        size_t current_size = current_burning.size();
+        std::pair<size_t, size_t>* d_current;
+        cudaMalloc(&d_current, current_size * sizeof(std::pair<size_t, size_t>));
+        cudaMemcpy(d_current, current_burning.data(), current_size * sizeof(std::pair<size_t, size_t>), cudaMemcpyHostToDevice);
+
+        int* d_new_count;
+        cudaMalloc(&d_new_count, sizeof(int));
         cudaMemset(d_new_count, 0, sizeof(int));
-        int threads = 128;
-        int blocks = (cur_count + threads - 1) / threads;
-        propagate_kernel<<<blocks,threads>>>(
-            d_cells, width, height,
-            params, distance, elev_mean, elev_sd,
-            nullptr,nullptr,
-            d_burned,
-            cur_count,
-            active_x, active_y,
-            next_x, next_y,
-            d_new_count
+
+        std::pair<size_t, size_t>* d_new_burning;
+        cudaMalloc(&d_new_burning, current_size * 8 * sizeof(std::pair<size_t, size_t>));
+
+        // Lanzar kernel
+        size_t total_threads = current_size * 8;
+        dim3 blockSize(256);
+        dim3 gridSize((total_threads + blockSize.x - 1) / blockSize.x);
+        fire_spread_kernel<<<gridSize, blockSize>>>(
+            d_landscape, d_burned_bin, d_current, current_size,
+            width, height, params, distance, elevation_mean,
+            elevation_sd, upper_limit, d_rng_states,
+            d_new_burning, d_new_count
         );
-        cudaMemcpy(&cur_count, d_new_count, sizeof(int), cudaMemcpyDeviceToHost);
-        // copy new actives to host and append
-        std::vector<int> h_nx(cur_count), h_ny(cur_count);
-        cudaMemcpy(h_nx.data(), next_x, cur_count*sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(h_ny.data(), next_y, cur_count*sizeof(int), cudaMemcpyDeviceToHost);
-        for (int i = 0; i < cur_count; ++i)
-            burned_list.emplace_back(h_nx[i], h_ny[i]);
-        steps.push_back(burned_list.size());
-        // swap buffers
-        std::swap(active_x, next_x);
-        std::swap(active_y, next_y);
+
+        // Recuperar resultados
+        int new_count;
+        cudaMemcpy(&new_count, d_new_count, sizeof(int), cudaMemcpyDeviceToHost);
+
+        std::vector<std::pair<size_t, size_t>> new_burning(new_count);
+        if (new_count > 0) {
+            cudaMemcpy(new_burning.data(), d_new_burning, new_count * sizeof(std::pair<size_t, size_t>), cudaMemcpyDeviceToHost);
+            burned_ids.insert(burned_ids.end(), new_burning.begin(), new_burning.end());
+        }
+
+        burned_steps.push_back(burned_ids.size());
+        current_burning = std::move(new_burning);
+
+        // Liberar memoria
+        cudaFree(d_current);
+        cudaFree(d_new_count);
+        cudaFree(d_new_burning);
     }
+
+    // Recuperar matriz quemada
+    Matrix<bool> burned_bin(width, height);
+    cudaMemcpy(burned_bin.data(), d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
+
+    // Construir resultado
+    result = {
+        width,
+        height,
+        burned_bin,
+        burned_ids,
+        burned_steps
+    };
 
     // Liberar memoria
-    cudaFree(d_cells);
-    cudaFree(d_burned);
-    cudaFree(d_act_x0); cudaFree(d_act_y0);
-    cudaFree(d_act_x1); cudaFree(d_act_y1);
-    cudaFree(d_new_count);
+    cudaFree(d_landscape);
+    cudaFree(d_burned_bin);
+    cudaFree(d_rng_states);
+}
 
-    return { (size_t)width, (size_t)height, /*burned_bin not returned*/ {}, burned_list, steps };
+// Función principal
+Fire simulate_fire(
+    const Landscape& landscape,
+    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
+    SimulationParams params,
+    float distance,
+    float elevation_mean,
+    float elevation_sd,
+    float upper_limit
+) {
+    Fire result;
+    simulate_fire_cuda(
+        landscape, ignition_cells, params,
+        distance, elevation_mean, elevation_sd,
+        upper_limit, result
+    );
+    return result;
 }
