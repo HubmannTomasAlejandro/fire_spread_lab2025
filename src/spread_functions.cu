@@ -15,7 +15,6 @@
 #include "fires.hpp"
 #include "landscape.hpp"
 #include "constants.hpp"
-#include "ignition.hpp"
 
 // Ángulos de dirección para vecinos (constante global)
 __constant__ float DEV_ANGLES[8];
@@ -170,7 +169,7 @@ void simulate_fire_cuda(
     setup_rng_kernel<<<(max_threads+255)/256, 256>>>(d_rng_states, 12345, max_threads);
 
     // Buffers para celdas quemadas
-    std::vector<sIgnitionPair> burned_ids = ignition_cells;
+    std::vector<IgnitionPair> burned_ids = ignition_cells;
     std::vector<size_t> burned_steps;
     burned_steps.push_back(ignition_cells.size());
 
@@ -220,7 +219,7 @@ void simulate_fire_cuda(
 
     // Recuperar matriz quemada
     Matrix<bool> burned_layer(width, height);
-    cudaMemcpy(burned_layer.data(), d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaMemcpy(burned_layer[{0,0}], d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
 
     // Construir resultado 
     result.width = width;
@@ -251,7 +250,13 @@ Fire simulate_fire(
         ignition.emplace_back(p.first, p.second);
     }
 
-    Fire result;
+    Fire result{
+	    landscape.width,
+	    landscape.height,
+	    Matrix<bool>(landscape.width, landscape.height),
+	    std::vector<IgnitionPair>(),
+	    std::vector<size_t>()
+    };
     simulate_fire_cuda(
         landscape, ignition_cells, params,
         distance, elevation_mean, elevation_sd,

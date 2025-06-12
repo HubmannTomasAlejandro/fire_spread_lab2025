@@ -5,7 +5,7 @@
 
 #include "landscape.hpp"
 #include "matrix.hpp"
-#include "ignition_cells.hpp"
+#include "ignition_pair.hpp"
 
 struct Fire {
   size_t width;

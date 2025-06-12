@@ -3,10 +3,10 @@
 #include <vector>
 #include <utility>
 #include <cstddef>
-#include <cuda_runtime.h>
 
 #include "fires.hpp"
 #include "landscape.hpp"
+#include "ignition_pair.hpp"
 
 struct SimulationParams {
   float independent_pred;
@@ -20,32 +20,6 @@ struct SimulationParams {
   float aspect_pred;
 };
 
-struct IgnitionPair {
-    size_t first;   
-    size_t second;  
-
-    __host__ __device__
-    IgnitionPair() = default;
-
-    __host__ __device__
-    IgnitionPair(size_t f, size_t s)
-      : first(f), second(s) {};
-
-    // Conversión implícita a std::pair
-    operator std::pair<size_t, size_t>() const {
-        return {first, second};
-    }
-
-    // Conversión desde std::pair
-    IgnitionPair(const std::pair<size_t, size_t>& p) 
-        : first(p.first), second(p.second) {};
-
-    // Operador de comparación
-    __host__ __device__
-    bool operator==(const IgnitionPair& other) const {
-        return first == other.first && second == other.second;
-    }
-};
 
 // Declaraciones para CUDA
 #ifdef __CUDACC__
@@ -84,7 +58,7 @@ void simulate_fire_cuda(
 // Función principal modificada para usar CUDA
 Fire simulate_fire(
     const Landscape& landscape,
-    const std::vector<IgnitionPair>& ignition_cells,
+    const std::vector<std::pair<size_t,size_t>>& ignition_cells,
     SimulationParams params,
     float distance,
     float elevation_mean,
