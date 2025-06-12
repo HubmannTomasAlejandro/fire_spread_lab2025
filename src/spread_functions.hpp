@@ -6,7 +6,6 @@
 
 #include "fires.hpp"
 #include "landscape.hpp"
-#include "ignition_pair.hpp"
 
 struct SimulationParams {
   float independent_pred;

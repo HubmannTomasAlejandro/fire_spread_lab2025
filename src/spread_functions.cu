@@ -62,7 +62,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 __global__ void fire_spread_kernel(
     const Cell* landscape,
     unsigned int* burned_bin,
-    const std::pair<size_t, size_t>* burning_cells,
+    const IgnitionPair* burning_cells,
     size_t num_burning,
     size_t width,
     size_t height,
@@ -72,7 +72,7 @@ __global__ void fire_spread_kernel(
     float elevation_sd,
     float upper_limit,
     curandState_t* rng_states,
-    std::pair<size_t, size_t>* new_burning,
+    IgnitionPair* new_burning,
     int* new_count
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -258,7 +258,7 @@ Fire simulate_fire(
 	    std::vector<size_t>()
     };
     simulate_fire_cuda(
-        landscape, ignition_cells, params,
+        landscape, ignition, params,
         distance, elevation_mean, elevation_sd,
         upper_limit, result
     );
