@@ -63,7 +63,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 __global__ void fire_spread_kernel(
     const Cell* landscape,
     unsigned int* burned_bin,
-    const IgnitionPair* burning_cells,
+    const std::pair<size_t, size_t>* burning_cells,
     size_t num_burning,
     size_t width,
     size_t height,
@@ -73,7 +73,7 @@ __global__ void fire_spread_kernel(
     float elevation_sd,
     float upper_limit,
     curandState_t* rng_states,
-    IgnitionPair* new_burning,
+    std::pair<size_t, size_t>* new_burning,
     int* new_count
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -149,7 +149,7 @@ void simulate_fire_cuda(
     cudaMemcpy(d_landscape, landscape.cells[{0,0}], num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
 
     unsigned int* d_burned_bin;
-    cudaMalloc(&d_burned_bin, num_cells * sizeof(unsigned int);
+    cudaMalloc(&d_burned_bin, num_cells * sizeof(unsigned int));
     cudaMemset(d_burned_bin, 0, num_cells * sizeof(unsigned int));
 
     // Configurar constantes
@@ -170,7 +170,7 @@ void simulate_fire_cuda(
     setup_rng_kernel<<<(max_threads+255)/256, 256>>>(d_rng_states, 12345, max_threads);
 
     // Buffers para celdas quemadas
-    std::vector<IgnitionPair> burned_ids = ignition_cells;
+    std::vector<sIgnitionPair> burned_ids = ignition_cells;
     std::vector<size_t> burned_steps;
     burned_steps.push_back(ignition_cells.size());
 
@@ -237,20 +237,21 @@ void simulate_fire_cuda(
 // Función principal
 Fire simulate_fire(
     const Landscape& landscape,
-    const std::vector<IgnitionPair>& ignition_cells,
+    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
     SimulationParams params,
     float distance,
     float elevation_mean,
     float elevation_sd,
     float upper_limit
 ) {
-    Fire result{
-	    landscape.width,
-	    landscape.height,
-	    Matrix<bool>(landscape.width, landscape.height),
-	    std::vector<IgnitionPair>(),
-	    std::vector<size_t>()
-    };
+    // Convertir ignition_cells a IgnitionPair
+    std::vector<IgnitionPair> ignition;
+    ignition.reserve(ignition_cells.size());
+    for (const auto& p : ignition_cells) {
+        ignition.emplace_back(p.first, p.second);
+    }
+
+    Fire result;
     simulate_fire_cuda(
         landscape, ignition_cells, params,
         distance, elevation_mean, elevation_sd,

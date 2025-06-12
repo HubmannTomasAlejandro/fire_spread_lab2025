@@ -61,10 +61,10 @@ Landscape::Landscape(std::string metadata_filename, std::string data_filename) :
   landscape_file.close();
 }
 
-Cell Landscape::operator[](IgnitionPair index) const {
+Cell Landscape::operator[](std::pair<size_t, size_t> index) const {
   return cells[index];
 }
 
-Cell& Landscape::operator[](IgnitionPair index) {
+Cell& Landscape::operator[](std::pair<size_t, size_t> index) {
   return cells[index];
 }

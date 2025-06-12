@@ -18,6 +18,15 @@ struct Fire {
   // Positions in burned_ids where a new step starts, empty if the fire was not simulated
   std::vector<size_t> burned_ids_steps;
 
+  // Constructor para conversión implícita
+    operator std::vector<std::pair<size_t, size_t>>() const {
+        std::vector<std::pair<size_t, size_t>> result;
+        for (const auto& p : burned_ids) {
+            result.emplace_back(p.first, p.second);
+        }
+        return result;
+    }
+
   bool operator==(const Fire& other) const {
     return width == other.width && height == other.height &&
            burned_layer == other.burned_layer && burned_ids == other.burned_ids;
