@@ -18,7 +18,7 @@ Fire read_fire(size_t width, size_t height, std::string filename) {
 
   Matrix<bool> burned_layer(width, height);
 
-  std::vector<std::pair<size_t, size_t>> burned_ids;
+  std::vector<IgnitionPair> burned_ids;
 
   for (; loop != CSVIterator(); ++loop) {
     if (loop->size() < 2) {

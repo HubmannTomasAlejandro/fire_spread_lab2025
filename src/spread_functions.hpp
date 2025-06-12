@@ -43,7 +43,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 // Declarar kernel CUDA
 void simulate_fire_cuda(
     const Landscape& landscape,
-    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
+    const std::vector<IgnitionPair>& ignition_cells,
     SimulationParams params,
     float distance,
     float elevation_mean,
@@ -55,7 +55,7 @@ void simulate_fire_cuda(
 // Función principal modificada para usar CUDA
 Fire simulate_fire(
     const Landscape& landscape,
-    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
+    const std::vector<IgnitionPair>& ignition_cells,
     SimulationParams params,
     float distance,
     float elevation_mean,

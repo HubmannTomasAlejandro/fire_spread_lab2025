@@ -4,7 +4,7 @@
 #include <omp.h> // omp_get_wtime()
 
 Matrix<size_t> burned_amounts_per_cell(
-    const Landscape& landscape, const std::vector<std::pair<size_t, size_t>>& ignition_cells,
+    const Landscape& landscape, const std::vector<IgnitionPair>& ignition_cells,
     SimulationParams params, double distance, double elevation_mean, double elevation_sd,
     double upper_limit, size_t n_replicates
 ) {

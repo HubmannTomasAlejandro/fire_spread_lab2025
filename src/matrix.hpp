@@ -6,11 +6,11 @@ template <typename T> struct Matrix {
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
-  const T operator[](std::pair<size_t, size_t> index) const {
+  const T operator[](IgnitionPair index) const {
     return elems[index.second * width + index.first];
   };
 
-  T& operator[](std::pair<size_t, size_t> index) {
+  T& operator[](IgnitionPair index) {
     return elems[index.second * width + index.first];
   };
 
@@ -37,7 +37,7 @@ template <> struct Matrix<bool> {
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
-  bool operator[](std::pair<size_t, size_t> index) const {
+  bool operator[](IgnitionPair index) const {
     return elems[index.second * width + index.first];
   };
 
@@ -53,7 +53,7 @@ template <> struct Matrix<bool> {
     }
   };
 
-  SmartReference operator[](std::pair<size_t, size_t> index) {
+  SmartReference operator[](IgnitionPair index) {
     return SmartReference{ elems, index.second * width + index.first };
   }
 

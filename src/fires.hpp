@@ -12,7 +12,7 @@ struct Fire {
 
   Matrix<bool> burned_layer;
 
-  std::vector<std::pair<size_t, size_t>> burned_ids;
+  std::vector<IgnitionPair> burned_ids;
 
   // Positions in burned_ids where a new step starts, empty if the fire was not simulated
   std::vector<size_t> burned_ids_steps;
