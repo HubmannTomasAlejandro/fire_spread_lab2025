@@ -4,6 +4,7 @@
 
 #include "landscape.hpp"
 #include "matrix.hpp"
+#include "ignition_cells.hpp"
 
 Fire read_fire(size_t width, size_t height, std::string filename) {
 

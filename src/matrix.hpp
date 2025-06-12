@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ignition_cells.hpp"
+
 template <typename T> struct Matrix {
   size_t width;
   size_t height;

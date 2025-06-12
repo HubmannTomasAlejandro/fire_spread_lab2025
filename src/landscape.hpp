@@ -2,6 +2,7 @@
 
 #include "csv.hpp"
 #include "matrix.hpp"
+#include "ignition_cells.hpp"
 
 // enum of vegetation type between: matorral, subalpine, wet, dry
 enum VegetationType {
