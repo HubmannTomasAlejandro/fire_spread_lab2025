@@ -145,7 +145,7 @@ void simulate_fire_cuda(
     // Copiar datos al dispositivo
     Cell* d_landscape;
     cudaMalloc(&d_landscape, num_cells * sizeof(Cell));
-    cudaMemcpy(d_landscape, landscape.cells[{0,0}], num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_landscape, landscape.cells.data(), num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
 
     unsigned int* d_burned_bin;
     cudaMalloc(&d_burned_bin, num_cells * sizeof(unsigned int));
@@ -219,7 +219,7 @@ void simulate_fire_cuda(
 
     // Recuperar matriz quemada
     Matrix<bool> burned_layer(width, height);
-    cudaMemcpy(burned_layer[{0,0}], d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
+    cudaMemcpy(burned_layer.data(), d_burned_bin, num_cells * sizeof(bool), cudaMemcpyDeviceToHost);
 
     // Construir resultado 
     result.width = width;
