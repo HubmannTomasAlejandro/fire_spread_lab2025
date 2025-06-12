@@ -5,6 +5,9 @@
 template <typename T> struct Matrix {
   size_t width;
   size_t height;
+  public:
+    T* data() { return &cells[std::make_pair(0,0)]; }
+    const T* data() const { return &cells[std::make_pair(0,0)]; }
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
@@ -36,6 +39,10 @@ template <typename T> struct Matrix {
 template <> struct Matrix<bool> {
   size_t width;
   size_t height;
+
+  public:
+    T* data() { return &cells[std::make_pair(0,0)]; }
+    const T* data() const { return &cells[std::make_pair(0,0)]; }
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
