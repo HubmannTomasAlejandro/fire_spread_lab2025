@@ -5,9 +5,6 @@
 template <typename T> struct Matrix {
   size_t width;
   size_t height;
-  public:
-    T* data() { return &cells[std::make_pair(0,0)]; }
-    const T* data() const { return &cells[std::make_pair(0,0)]; }
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
@@ -34,15 +31,17 @@ template <typename T> struct Matrix {
   };
 
   std::vector<T> elems;
+
+  T*       data()       noexcept { return storage_.data(); }
+    const T* data() const noexcept { return storage_.data(); }
+
+  private:
+      std::vector<T> storage_;
 };
 
 template <> struct Matrix<bool> {
   size_t width;
   size_t height;
-
-  public:
-    T* data() { return &cells[std::make_pair(0,0)]; }
-    const T* data() const { return &cells[std::make_pair(0,0)]; }
 
   Matrix(size_t width, size_t height) : width(width), height(height), elems(width * height){};
 
@@ -81,4 +80,10 @@ template <> struct Matrix<bool> {
   };
 
   std::vector<bool> elems;
+
+  T*       data()       noexcept { return storage_.data(); }
+    const T* data() const noexcept { return storage_.data(); }
+
+  private:
+      std::vector<T> storage_;
 };
