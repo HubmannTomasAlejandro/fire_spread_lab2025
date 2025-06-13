@@ -114,7 +114,8 @@ __global__ void fire_spread_kernel(
         unsigned int old = atomicCAS(&burned_bin[neighbor_linear], 0, 1);
         if (!old) {
             int pos = atomicAdd(new_count, 1);
-            new_burning[pos] = {neighbor_i, neighbor_j};
+            new_burning[pos] = {static_cast<size_t>(neighbor_i), 
+                                static_cast<size_t>(neighbor_j)};
         }
     }
 }
