@@ -61,7 +61,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 // Kernel CUDA para simular propagación
 __global__ void fire_spread_kernel(
     const Cell* landscape,
-    unsigned int* burned_bin,
+    unsigned char* burned_bin,  // Cambiado a unsigned char
     const IgnitionPair* burning_cells,
     size_t num_burning,
     size_t width,
@@ -71,9 +71,9 @@ __global__ void fire_spread_kernel(
     float elevation_mean,
     float elevation_sd,
     float upper_limit,
-    curandState_t* rng_states,
-    IgnitionPair* new_burning,
-    int* new_count
+    int iter,  // Contador de iteración
+    size_t total_cells,  // Total de celdas (width*height)
+    curandState_t* global_rng_states  // Opcional: nullptr si no se usa
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_burning * 8) return;
@@ -85,18 +85,39 @@ __global__ void fire_spread_kernel(
     int neighbor_i = cell.first + DEV_MOVES[neighbor_idx][0];
     int neighbor_j = cell.second + DEV_MOVES[neighbor_idx][1];
 
-    if (neighbor_i < 0 || neighbor_i >= height || neighbor_j < 0 || neighbor_j >= width) {
+    // Calcular índice de la celda actual (row-major)
+    size_t burning_idx = cell.second * width + cell.first;
+    
+    if (neighbor_i < 0 || neighbor_i >= width || 
+        neighbor_j < 0 || neighbor_j >= height) {
         return;
     }
 
-    size_t neighbor_linear = neighbor_i * width + neighbor_j;
+    // Calcular índice vecino (row-major)
+    size_t neighbor_linear = neighbor_j * width + neighbor_i;
     Cell neighbor_cell = landscape[neighbor_linear];
+    
     if (!neighbor_cell.burnable || burned_bin[neighbor_linear]) {
         return;
     }
 
+    // Generador aleatorio
+    float rand_val;
+    if (global_rng_states) {
+        curandState_t local_state = global_rng_states[idx];
+        rand_val = curand_uniform(&local_state);
+        global_rng_states[idx] = local_state;
+    } else {
+        // Inicialización on-the-fly
+        curandState_t local_state;
+        size_t unique_id = (iter * total_cells * 8) + idx;
+        curand_init(12345, unique_id, 0, &local_state);
+        rand_val = curand_uniform(&local_state);
+    }
+
+    // Calcular probabilidad
     float prob = spread_probability_scalar(
-        landscape[cell.first * width + cell.second],
+        landscape[burning_idx],  // Celda quemada correcta
         neighbor_cell,
         params,
         distance,
@@ -106,15 +127,14 @@ __global__ void fire_spread_kernel(
         upper_limit
     );
 
-    curandState_t local_state = rng_states[idx];
-    float rand_val = curand_uniform(&local_state);
-    rng_states[idx] = local_state;
-
     if (rand_val < prob) {
-        unsigned int old = atomicCAS(&burned_bin[neighbor_linear], 0, 1);
-        if (!old) {
+        unsigned char expected = 0;
+        unsigned char desired = 1;
+        unsigned char old = atomicCAS(&burned_bin[neighbor_linear], expected, desired);
+        
+        if (old == 0) {
             int pos = atomicAdd(new_count, 1);
-            new_burning[pos] = {static_cast<size_t>(neighbor_i), 
+            new_burning[pos] = {static_cast<size_t>(neighbor_i),
                                 static_cast<size_t>(neighbor_j)};
         }
     }
@@ -173,7 +193,8 @@ void simulate_fire_cuda(
     std::vector<IgnitionPair> burned_ids = ignition_cells;
     std::vector<size_t> burned_steps;
     burned_steps.push_back(ignition_cells.size());
-
+    
+    int iter_count = 0;
     // Bucle de propagación
     while (!current_burning.empty()) {
         size_t current_size = current_burning.size();
@@ -195,9 +216,9 @@ void simulate_fire_cuda(
         fire_spread_kernel<<<gridSize, blockSize>>>(
             d_landscape, d_burned_bin, d_current, current_size,
             width, height, params, distance, elevation_mean,
-            elevation_sd, upper_limit, d_rng_states,
-            d_new_burning, d_new_count
+            elevation_sd, upper_limit, iter_count, num_cells, nullptr
         );
+        iter_count++;
 
         // Recuperar resultados
         int new_count;
