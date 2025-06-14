@@ -20,12 +20,12 @@ Matrix<size_t> burned_amounts_per_cell(
         landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
     );
 
-    amount_of_burned_cells += fire.burned_ids.size();
     for (size_t j = 0; j < landscape.width * landscape.height; j++) {
         bool was_burned = fire.burned_layer.data()[j];
         size_t col = j % landscape.width;
         size_t row = j / landscape.width;
         if (was_burned) {
+          amount_of_burned_cells++;
           burned_amounts[{col, row}] += 1;
         }
       }
