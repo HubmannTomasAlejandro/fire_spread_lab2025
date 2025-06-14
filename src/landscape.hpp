@@ -26,12 +26,15 @@ struct Cell {
 struct Landscape {
   size_t width;
   size_t height;
+  Cell* cells;
 
-  Landscape(size_t width, size_t height);
-  Landscape(std::string metadata_filename, std::string data_filename);
+  // constructors & destructor
+  Landscape(size_t width_, size_t height_);
+  Landscape(const std::string& metadata_filename,
+            const std::string& data_filename);
+  ~Landscape();
 
-  Cell operator[](std::pair<size_t, size_t> index) const;
-  Cell& operator[](std::pair<size_t, size_t> index);
-
-  Matrix<Cell> cells;
+  // element access
+  Cell& operator[](const std::pair<size_t, size_t>& index);
+  Cell  operator[](const std::pair<size_t, size_t>& index) const;
 };

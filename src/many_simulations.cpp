@@ -1,6 +1,7 @@
 #include "many_simulations.hpp"
 
 #include <cmath>
+#include <cassert>  // for assert
 #include <omp.h> // omp_get_wtime()
 
 Matrix<size_t> burned_amounts_per_cell(
@@ -18,15 +19,18 @@ Matrix<size_t> burned_amounts_per_cell(
     Fire fire = simulate_fire(
         landscape, ignition_cells, params, distance, elevation_mean, elevation_sd, upper_limit
     );
+
     amount_of_burned_cells += fire.burned_ids.size();
-    for (size_t col = 0; col < landscape.width; col++) {
-      for (size_t row = 0; row < landscape.height; row++) {
-        if (fire.burned_layer[{col, row}]) {
+    for (size_t j = 0; j < landscape.width * landscape.height; j++) {
+        bool was_burned = fire.burned_layer.data()[j];
+        size_t col = j % landscape.width;
+        size_t row = j / landscape.width;
+        if (was_burned) {
           burned_amounts[{col, row}] += 1;
         }
       }
-    }
   }
+  fprintf(stderr,"burned_amounts:\n");
 
   fprintf(stderr,"cells_burned_per_micro_sec: %lf\n",
     amount_of_burned_cells / ((omp_get_wtime() - t) * 1e6));

@@ -64,11 +64,11 @@ int main(int argc, char* argv[]) {
 
     outFile.close(); // Close the file
 
-
   } catch (std::runtime_error& e) {
     std::cerr << "ERROR: " << e.what() << std::endl;
     return EXIT_FAILURE;
   }
+
 
   return EXIT_SUCCESS;
 }
