@@ -55,7 +55,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 __global__ void fire_spread_kernel(
     const Cell* landscape,
     unsigned int* burning_state,
-    curandStatePhilox4_32_10_t* rng_states,  // Added pre-initialized RNG states
+    curandStateXORWOW_t* rng_states,  // Added pre-initialized RNG states
     size_t width, size_t height,
     float distance, float elevation_mean, float elevation_sd,
     float upper_limit, const SimulationParams params,
@@ -74,13 +74,11 @@ __global__ void fire_spread_kernel(
     Cell burning_cell = landscape[idx];
     bool thread_active = false;
 
-    unsigned long seed =
-        (blockIdx.x * 2654435761) ^
-        (threadIdx.x * 2246822519) ^
-        (current_iteration * 3266489917) ^
-        (clock64() % 7919);
-    curandStatePhilox4_32_10_t rng_state;
-    curand_init(seed, idx, 0, &rng_state);
+    //unsigned long seed = (123456 * current_iteration) % idx;
+    //unsigned long seed = 123456 + current_iteration * 31 + idx;
+
+    curandStateXORWOW_t rng_state = rng_states[idx];
+    //curand_init(seed + idx, idx, 0, &rng_state);
 
     for (int i = 0; i < 8; i++) {
         int nx = x + DEV_MOVES[i][0];
@@ -107,19 +105,19 @@ __global__ void fire_spread_kernel(
         }
     }
 
+    rng_states[idx] = rng_state; // Save the updated RNG state back to device memory
+
     if (thread_active) {
         *active_flag = true;
     }
 }
-
-
 
 Fire simulate_fire(
     const Landscape& landscape,
     const Cell* d_landscape,
     const std::vector<IgnitionPair>& ignition_cells,
     unsigned int* d_burning_state,
-    curandStatePhilox4_32_10_t* d_rng_states,
+    curandStateXORWOW_t* d_rng_states,
     SimulationParams params,
     float distance,
     float elevation_mean,
@@ -172,10 +170,6 @@ Fire simulate_fire(
             d_active_flag
         );
 
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            fprintf(stderr, "Kernel error: %s\n", cudaGetErrorString(err));
-        }
         cudaDeviceSynchronize();
         cudaMemcpy(&h_active, d_active_flag, sizeof(bool), cudaMemcpyDeviceToHost);
 

@@ -50,7 +50,7 @@ Fire simulate_fire(
     const Cell* d_landscape,
     const std::vector<IgnitionPair>& ignition_cells,
     unsigned int* d_burning_state,
-    curandStatePhilox4_32_10_t* d_rng_states,
+    curandStateXORWOW_t* d_rng_states,
     SimulationParams params,
     float distance,
     float elevation_mean,

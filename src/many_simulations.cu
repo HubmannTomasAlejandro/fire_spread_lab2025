@@ -8,7 +8,7 @@
 #include <curand_kernel.h>
 #include <cstdio>  // For fprintf
 
-__global__ void setup_rng_kernel(curandStatePhilox4_32_10_t* states,
+__global__ void setup_rng_kernel(curandStateXORWOW_t* states,
                                 unsigned long seed,
                                 size_t n) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -56,8 +56,8 @@ Matrix<size_t> burned_amounts_per_cell(
 
     unsigned int seed=(landscape.width * 2654435761) ^
         (landscape.height * 2246822519);
-    curandStatePhilox4_32_10_t* d_rng_states;
-    cudaMalloc(&d_rng_states, num_cells * sizeof(curandStatePhilox4_32_10_t));
+    curandStateXORWOW_t* d_rng_states;
+    cudaMalloc(&d_rng_states, num_cells * sizeof(curandStateXORWOW_t));
 
     setup_rng_kernel<<<gridSize, blockSize>>>(d_rng_states, seed, num_cells);
     // Initialize RNG states
