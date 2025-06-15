@@ -159,30 +159,10 @@ void simulate_fire_cuda(
 
     unsigned int current_iteration = 2;
     bool h_active = true;
-
-    for (int i = 0; i < 10; i++) {
-        // Copy just this cell's data
-        unsigned int state;
-        Cell cell;
-        cudaMemcpy(&state, d_burning_state + i, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(&cell, d_landscape + i, sizeof(Cell), cudaMemcpyDeviceToHost);
-
-
-        if (cell.burnable != landscape.cells[i].burnable ) {
-            printf("Cells in device memory:\n");
-            printf("Cell %d - Burnable: %d, Vegetation: %d, State: %u\n",
-                i, cell.burnable, static_cast<int>(cell.vegetation_type), state);
-            printf("Cells in landscape:\n");
-            printf("Cell %d - Burnable: %d, Vegetation: %d\n",
-                i, landscape.cells[i].burnable, static_cast<int>(landscape.cells[i].vegetation_type));
-        }
-
-
-    }
+    cudaMemset(d_active_flag, 0, sizeof(bool));
 
     while (h_active) {
         h_active = false;
-        cudaMemset(d_active_flag, 0, sizeof(bool));
 
         fire_spread_kernel<<<gridSize, blockSize>>>(
             d_landscape, d_burning_state, width, height,
@@ -201,7 +181,6 @@ void simulate_fire_cuda(
 
         current_iteration++;
     }
-
 
     std::vector<unsigned int> temp_burned_layer(num_cells);
     cudaMemcpy(temp_burned_layer.data(), d_burning_state,
@@ -256,12 +235,6 @@ Fire simulate_fire(
         distance, elevation_mean, elevation_sd,
         upper_limit, result
     );
-
-    unsigned int burned_amount = 0;
-    for (size_t i = 0; i < landscape.width * landscape.height; i++) {
-        burned_amount += int(result.burned_layer.data()[i]);
-    }
-
 
     return result;
 }
