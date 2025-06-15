@@ -11,7 +11,7 @@ struct Fire {
   size_t width;
   size_t height;
 
-  Matrix<bool> burned_layer;
+  unsigned int* burned_layer;
 
   std::vector<IgnitionPair> burned_ids;
 

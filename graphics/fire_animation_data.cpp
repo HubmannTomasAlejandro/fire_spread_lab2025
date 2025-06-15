@@ -33,15 +33,6 @@ int main(int argc, char* argv[]) {
     IgnitionCells ignition_cells =
         read_ignition_cells(landscape_file_prefix + "-ignition_points.csv");
 
-    SimulationParams params = {
-      0, 0.5, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2
-    };
-
-    Fire fire = simulate_fire(
-        landscape, ignition_cells, params, DISTANCE, ELEVATION_MEAN, ELEVATION_SD,
-        UPPER_LIMIT
-    );
-
     // Print the fire
 
     std::ofstream outFile("fire_animation_data.txt", std::ios::trunc);
@@ -51,19 +42,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     outFile << "Landscape size: " << landscape.width << " " << landscape.height << std::endl;
-
-    size_t step = 0;
-    size_t i = 0;
-    for (size_t j : fire.burned_ids_steps) {
-      if (i >= j) {
-        continue;
-      }
-      outFile << "Step " << step << ":" << std::endl;
-      for (; i < j; i++) {
-        outFile << fire.burned_ids[i].first << " " << fire.burned_ids[i].second << std::endl;
-      }
-      step++;
-    }
 
   } catch (std::runtime_error& e) {
     std::cerr << "ERROR: " << e.what() << std::endl;

@@ -55,6 +55,7 @@ CUDA_CALLABLE float spread_probability_scalar(
 __global__ void fire_spread_kernel(
     const Cell* landscape,
     unsigned int* burning_state,
+    curandStatePhilox4_32_10_t* rng_states,  // Added pre-initialized RNG states
     size_t width, size_t height,
     float distance, float elevation_mean, float elevation_sd,
     float upper_limit, const SimulationParams params,
@@ -70,6 +71,9 @@ __global__ void fire_spread_kernel(
     // Only process cells that burned in previous iteration
     if (burning_state[idx] != current_iteration - 1) return;
 
+    Cell burning_cell = landscape[idx];
+    bool thread_active = false;
+
     unsigned long seed =
         (blockIdx.x * 2654435761) ^
         (threadIdx.x * 2246822519) ^
@@ -77,9 +81,6 @@ __global__ void fire_spread_kernel(
         (clock64() % 7919);
     curandStatePhilox4_32_10_t rng_state;
     curand_init(seed, idx, 0, &rng_state);
-
-    Cell burning_cell = landscape[idx];
-    bool thread_active = false;
 
     for (int i = 0; i < 8; i++) {
         int nx = x + DEV_MOVES[i][0];
@@ -111,33 +112,32 @@ __global__ void fire_spread_kernel(
     }
 }
 
-__global__ void setup_rng_kernel(curandState* state, unsigned long seed, size_t n) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        curand_init(seed, idx, 0, &state[idx]);
-    }
-}
 
-void simulate_fire_cuda(
+
+Fire simulate_fire(
     const Landscape& landscape,
+    const Cell* d_landscape,
     const std::vector<IgnitionPair>& ignition_cells,
+    unsigned int* d_burning_state,
+    curandStatePhilox4_32_10_t* d_rng_states,
     SimulationParams params,
     float distance,
     float elevation_mean,
     float elevation_sd,
-    float upper_limit,
-    Fire& result
+    float upper_limit
 ) {
     size_t width = landscape.width;
     size_t height = landscape.height;
     size_t num_cells = width * height;
 
-    Cell* d_landscape;
-    cudaMalloc(&d_landscape, num_cells * sizeof(Cell));
-    cudaMemcpy(d_landscape, landscape.cells, num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
+    Fire result{
+        landscape.width,
+        landscape.height,
+        d_burning_state,
+        std::vector<IgnitionPair>(),
+        std::vector<size_t>()
+    };
 
-    unsigned int* d_burning_state;
-    cudaMalloc(&d_burning_state, num_cells * sizeof(unsigned int));
     cudaMemset(d_burning_state, 0, num_cells * sizeof(unsigned int));
 
     unsigned int value = 1;
@@ -149,7 +149,6 @@ void simulate_fire_cuda(
     cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
     cudaMemcpyToSymbol(DEV_MOVES, MOVES, 8 * 2 * sizeof(int));
 
-
     dim3 blockSize(16, 16);
     dim3 gridSize((width + blockSize.x - 1) / blockSize.x,
                  (height + blockSize.y - 1) / blockSize.y);
@@ -159,13 +158,15 @@ void simulate_fire_cuda(
 
     unsigned int current_iteration = 2;
     bool h_active = true;
-    cudaMemset(d_active_flag, 0, sizeof(bool));
+
 
     while (h_active) {
         h_active = false;
+        cudaMemset(d_active_flag, 0, sizeof(bool));
 
         fire_spread_kernel<<<gridSize, blockSize>>>(
-            d_landscape, d_burning_state, width, height,
+            d_landscape, d_burning_state, d_rng_states,
+            width, height,
             distance, elevation_mean, elevation_sd, upper_limit,
             params, current_iteration,
             d_active_flag
@@ -175,66 +176,24 @@ void simulate_fire_cuda(
         if (err != cudaSuccess) {
             fprintf(stderr, "Kernel error: %s\n", cudaGetErrorString(err));
         }
-
         cudaDeviceSynchronize();
         cudaMemcpy(&h_active, d_active_flag, sizeof(bool), cudaMemcpyDeviceToHost);
 
         current_iteration++;
     }
 
-    std::vector<unsigned int> temp_burned_layer(num_cells);
-    cudaMemcpy(temp_burned_layer.data(), d_burning_state,
-            num_cells * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    unsigned int* h_burned_layer = new unsigned int[num_cells];
 
+    // Copy from device to host
+    cudaMemcpy(h_burned_layer, d_burning_state,
+            num_cells * sizeof(unsigned int),
+            cudaMemcpyDeviceToHost);
 
-
-    std::vector<IgnitionPair> burned_ids_aux;
-    std::vector<size_t> burned_ids_steps_aux;
-
-    // Convert to Matrix<bool>
-    Matrix<bool> burned_layer(width, height);
-    unsigned int burned_amount = 0;
-    for (size_t i = 0; i < num_cells; i++) {
-        burned_layer.data()[i] = (temp_burned_layer[i] > 0);
-        burned_amount += int(burned_layer.data()[i]);
-    }
     result.width = width;
     result.height = height;
-    result.burned_layer = burned_layer;
+    result.burned_layer = h_burned_layer;
 
-    cudaFree(d_landscape);
-    cudaFree(d_burning_state);
     cudaFree(d_active_flag);
-}
-
-Fire simulate_fire(
-    const Landscape& landscape,
-    const std::vector<std::pair<size_t, size_t>>& ignition_cells,
-    SimulationParams params,
-    float distance,
-    float elevation_mean,
-    float elevation_sd,
-    float upper_limit
-) {
-    std::vector<IgnitionPair> ignition;
-    ignition.reserve(ignition_cells.size());
-    for (const auto& p : ignition_cells) {
-        ignition.emplace_back(p.first, p.second);
-    }
-
-    Fire result{
-        landscape.width,
-        landscape.height,
-        Matrix<bool>(landscape.width, landscape.height),
-        std::vector<IgnitionPair>(),
-        std::vector<size_t>()
-    };
-
-    simulate_fire_cuda(
-        landscape, ignition, params,
-        distance, elevation_mean, elevation_sd,
-        upper_limit, result
-    );
 
     return result;
 }

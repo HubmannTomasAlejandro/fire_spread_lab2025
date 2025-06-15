@@ -17,7 +17,7 @@ Fire read_fire(size_t width, size_t height, std::string filename) {
   CSVIterator loop(burned_ids_file);
   loop++;
 
-  Matrix<bool> burned_layer(width, height);
+  unsigned int* burned_layer = new unsigned int[width * height]();
 
   std::vector<IgnitionPair> burned_ids;
 
@@ -30,7 +30,8 @@ Fire read_fire(size_t width, size_t height, std::string filename) {
     if (x >= width || y >= height) {
       throw std::runtime_error("Invalid fire file");
     }
-    burned_layer[{ x, y }] = true;
+
+    burned_layer[y * width + x] = 1;
     burned_ids.push_back({ x, y });
   }
 

@@ -6,6 +6,8 @@
 
 #include "fires.hpp"
 #include "landscape.hpp"
+#include <cuda_runtime.h>
+#include <curand_kernel.h>
 
 struct SimulationParams {
   float independent_pred;
@@ -42,22 +44,13 @@ CUDA_CALLABLE float spread_probability_scalar(
     float upper_limit = 1.0f
 );
 
-// Declarar kernel CUDA
-void simulate_fire_cuda(
-    const Landscape& landscape,
-    const std::vector<IgnitionPair>& ignition_cells,
-    SimulationParams params,
-    float distance,
-    float elevation_mean,
-    float elevation_sd,
-    float upper_limit,
-    Fire& result
-);
-
 // Función principal modificada para usar CUDA
 Fire simulate_fire(
     const Landscape& landscape,
-    const std::vector<std::pair<size_t,size_t>>& ignition_cells,
+    const Cell* d_landscape,
+    const std::vector<IgnitionPair>& ignition_cells,
+    unsigned int* d_burning_state,
+    curandStatePhilox4_32_10_t* d_rng_states,
     SimulationParams params,
     float distance,
     float elevation_mean,
