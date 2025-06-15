@@ -55,6 +55,7 @@ Fire simulate_fire(
     float distance,
     float elevation_mean,
     float elevation_sd,
+    size_t n_replicates,
     float upper_limit = 1.0f
 );
 

@@ -8,14 +8,7 @@
 #include <curand_kernel.h>
 #include <cstdio>  // For fprintf
 
-__global__ void setup_rng_kernel(curandStateXORWOW_t* states,
-                                unsigned long seed,
-                                size_t n) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        curand_init(seed, idx, 0, &states[idx]);
-    }
-}
+
 
 
 Matrix<size_t> burned_amounts_per_cell(
@@ -29,7 +22,6 @@ Matrix<size_t> burned_amounts_per_cell(
     size_t n_replicates
 ) {
     Matrix<size_t> burned_amounts(landscape.width, landscape.height);
-    double t = omp_get_wtime();
     size_t amount_of_burned_cells = 0;
     size_t num_cells = landscape.width * landscape.height;
 
@@ -46,21 +38,13 @@ Matrix<size_t> burned_amounts_per_cell(
     }
 
 
-    dim3 blockSize(16, 16);
-    dim3 gridSize((landscape.width + blockSize.x - 1) / blockSize.x,
-                 (landscape.height + blockSize.y - 1) / blockSize.y);
-
     // Allocate burning state on device
     unsigned int* d_burning_state;
     cudaMalloc(&d_burning_state, num_cells * sizeof(unsigned int));
 
-    unsigned int seed=(landscape.width * 2654435761) ^
-        (landscape.height * 2246822519);
     curandStateXORWOW_t* d_rng_states;
     cudaMalloc(&d_rng_states, num_cells * sizeof(curandStateXORWOW_t));
-
-    setup_rng_kernel<<<gridSize, blockSize>>>(d_rng_states, seed, num_cells);
-    // Initialize RNG states
+    double t = omp_get_wtime();
 
     for (size_t i = 0; i < n_replicates; i++) {
         // Reset burning state for each replicate
@@ -82,6 +66,7 @@ Matrix<size_t> burned_amounts_per_cell(
             static_cast<float>(distance),
             static_cast<float>(elevation_mean),
             static_cast<float>(elevation_sd),
+            i,
             static_cast<float>(upper_limit)
         );
 

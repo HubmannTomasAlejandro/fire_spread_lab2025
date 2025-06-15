@@ -18,6 +18,14 @@
 __constant__ float DEV_ANGLES[8];
 __constant__ int DEV_MOVES[8][2];
 
+CUDA_CALLABLE float random_xor(unsigned int seed) {
+    // XorShift algorithm for generating pseudo-random numbers
+    seed ^= (seed << 13);
+    seed ^= (seed >> 17);
+    seed ^= (seed << 5);
+    return static_cast<float>(seed) / static_cast<float>(UINT32_MAX);
+}
+
 
 CUDA_CALLABLE float spread_probability_scalar(
     const Cell& burning,
@@ -74,11 +82,16 @@ __global__ void fire_spread_kernel(
     Cell burning_cell = landscape[idx];
     bool thread_active = false;
 
-    //unsigned long seed = (123456 * current_iteration) % idx;
-    //unsigned long seed = 123456 + current_iteration * 31 + idx;
+    //curandStateXORWOW_t rng_state = rng_states[idx];
 
-    curandStateXORWOW_t rng_state = rng_states[idx];
-    //curand_init(seed + idx, idx, 0, &rng_state);
+    // Each kernel node initializes RNG state with a unique seed only if the point
+    unsigned long seed =
+        (blockIdx.x * 2654435761) ^
+        (threadIdx.x * 2246822519) ^
+        (current_iteration * 3266489917) ^
+        (clock64() % 7919);
+    curandStatePhilox4_32_10_t rng_state;
+    curand_init(seed, idx, 0, &rng_state);
 
     for (int i = 0; i < 8; i++) {
         int nx = x + DEV_MOVES[i][0];
@@ -105,12 +118,31 @@ __global__ void fire_spread_kernel(
         }
     }
 
-    rng_states[idx] = rng_state; // Save the updated RNG state back to device memory
+    //rng_states[idx] = rng_state; // Update the RNG state back to the array
 
     if (thread_active) {
         *active_flag = true;
     }
 }
+
+__global__ void setup_rng_kernel(curandStateXORWOW_t* states,
+                                 unsigned long base_seed,
+                                 size_t width,
+                                 size_t height,
+                                 size_t replicate_id) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= width || y >= height) return;
+
+    size_t idx = y * width + x;
+
+    // Semilla distinta por réplica y celda
+    unsigned long long seed = base_seed + replicate_id * 100000 + idx;
+
+    // Secuencia única por hilo
+    curand_init(seed, /* sequence */ idx, /* offset */ 0, &states[idx]);
+}
+
 
 Fire simulate_fire(
     const Landscape& landscape,
@@ -122,6 +154,7 @@ Fire simulate_fire(
     float distance,
     float elevation_mean,
     float elevation_sd,
+    size_t n_replicates,
     float upper_limit
 ) {
     size_t width = landscape.width;
@@ -157,6 +190,15 @@ Fire simulate_fire(
     unsigned int current_iteration = 2;
     bool h_active = true;
 
+
+    //Para cada replica, inicializar el estado del RNG
+    //setup_rng_kernel<<<gridSize, blockSize>>>(
+    //    d_rng_states,
+    //    12345678,  // seed base
+    //    width,
+    //    height,
+    //    n_replicates  // entre 0 y n_replicates
+    //);
 
     while (h_active) {
         h_active = false;
