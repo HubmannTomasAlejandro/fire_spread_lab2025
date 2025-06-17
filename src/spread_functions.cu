@@ -119,25 +119,6 @@ __global__ void fire_spread_kernel(
     }
 }
 
-__global__ void setup_rng_kernel(curandStateXORWOW_t* states,
-                                 unsigned long base_seed,
-                                 size_t width,
-                                 size_t height,
-                                 size_t replicate_id) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    if (x >= width || y >= height) return;
-
-    size_t idx = y * width + x;
-
-    // Semilla distinta por réplica y celda
-    unsigned long long seed = base_seed + replicate_id * 100000 + idx;
-
-    // Secuencia única por hilo
-    curand_init(seed, /* sequence */ idx, /* offset */ 0, &states[idx]);
-}
-
-
 __global__ void set_ignition_kernel(
     unsigned int* d_burning_state,
     const IgnitionPair* d_ignition,
@@ -178,7 +159,7 @@ Fire simulate_fire(
         (height + blockSize.y - 1) / blockSize.y
     );
 
-    unsigned int current_iteration = 1;
+    unsigned int current_iteration = 2;
     bool h_active = true;
 
     while (h_active) {
@@ -189,6 +170,7 @@ Fire simulate_fire(
                         cudaMemcpyHostToDevice,
                         stream);
 
+        cudaStreamSynchronize(stream);
 
         fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
             d_landscape,
@@ -202,12 +184,13 @@ Fire simulate_fire(
             d_active_flag
         );
 
-
         cudaMemcpyAsync(&h_active, d_active_flag,
-                        sizeof(bool),
-                        cudaMemcpyDeviceToHost,
-                        stream);
-        cudaStreamSynchronize(stream);  // Espera kernel + copia
+            sizeof(bool),
+            cudaMemcpyDeviceToHost,
+            stream);
+            cudaStreamSynchronize(stream);  // Espera kernel + copia
+
+        cudaStreamSynchronize(stream);
 
         ++current_iteration;
     }

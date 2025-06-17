@@ -13,13 +13,6 @@
 __constant__ float DEV_ANGLES[8];
 __constant__ int DEV_MOVES[8][2];
 
-__global__ void setup_rng_kernel_auto(curandStateXORWOW_t* state, unsigned long seed, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        curand_init(seed + idx, 0, 0, &state[idx]);
-    }
-}
-
 Matrix<size_t> burned_amounts_per_cell(
     const Landscape& landscape,
     const std::vector<std::pair<size_t, size_t>>& ignition_cells,
@@ -58,7 +51,6 @@ Matrix<size_t> burned_amounts_per_cell(
 
     // 4. Estado de quemado y RNG
     cudaMalloc(&d_burning_state, num_cells * sizeof(unsigned int));
-    cudaMalloc(&d_rng_states, num_cells * sizeof(curandStateXORWOW_t));
 
     // 5. Copiar puntos de ignición a device (una sola vez)
     std::vector<IgnitionPair> ignition;
@@ -77,41 +69,14 @@ Matrix<size_t> burned_amounts_per_cell(
     cudaMemcpyToSymbol(DEV_MOVES,  MOVES,  8 * 2 * sizeof(int));
     cudaStreamSynchronize(stream);
 
-    // ─── Configuración kernel de ignición ─────────────────────────────────
-    const size_t ignition_size = ignition.size();
-    const dim3 ignitionBlock(256);
-    const dim3 ignitionGrid((ignition_size + ignitionBlock.x - 1) / ignitionBlock.x);
-
-    //double t = omp_get_wtime();
-    /*auto setup_rng_kernel_auto = [] __device__ (curandStateXORWOW_t* state,    unsigned long seed, int n) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < n) {
-            curand_init(seed + idx, 0, 0, &state[idx]);
-        }
-    };
-*/
     double t = omp_get_wtime();
-    unsigned long base_seed = static_cast<unsigned long>(t * 1000);
 
     // ─── Bucle principal de réplicas ──────────────────────────────────────
     for (size_t i = 0; i < n_replicates; i++) {
         // 1. Reset estado de quemado
-        cudaMemsetAsync(d_burning_state, 0, num_cells * sizeof(unsigned int), stream);
+        cudaMemset(d_burning_state, 0, num_cells * sizeof(unsigned int));
 
-	dim3 rngBlock(256);
-        dim3 rngGrid((num_cells + rngBlock.x - 1) / rngBlock.x);
-        setup_rng_kernel_auto<<<rngGrid, rngBlock, 0, stream>>>(d_rng_states, base_seed + i, num_cells);
-        cudaStreamSynchronize(stream);
-
-        // 2. Inicializar puntos de ignición con kernel
-        /*set_ignition_kernel<<<ignitionGrid, ignitionBlock, 0, stream>>>(
-            d_burning_state,
-            d_ignition,
-            ignition_size,
-            width
-        );*/
-
-	unsigned int value = 1;
+    	unsigned int value = 1;
         for (const auto& cell : ignition) {
             size_t idx = cell.second * landscape.width + cell.first;
             cudaMemcpy(d_burning_state + idx, &value, sizeof(unsigned int), cudaMemcpyHostToDevice);
