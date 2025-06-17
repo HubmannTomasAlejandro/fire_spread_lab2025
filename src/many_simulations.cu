@@ -10,8 +10,8 @@
 #include <cstdio>  // For fprintf
 
 
-__constant__ float DEV_ANGLES[8];
-__constant__ int DEV_MOVES[8][2];
+//__constant__ float DEV_ANGLES[8];
+//__constant__ int DEV_MOVES[8][2];
 
 Matrix<size_t> burned_amounts_per_cell(
     const Landscape& landscape,
@@ -65,9 +65,9 @@ Matrix<size_t> burned_amounts_per_cell(
                    cudaMemcpyHostToDevice, stream);
 
     // 6. Copiar constantes a símbolos (una sola vez)
-    cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
-    cudaMemcpyToSymbol(DEV_MOVES,  MOVES,  8 * 2 * sizeof(int));
-    cudaStreamSynchronize(stream);
+    //cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
+    //cudaMemcpyToSymbol(DEV_MOVES,  MOVES,  8 * 2 * sizeof(int));
+    //cudaStreamSynchronize(stream);
 
     double t = omp_get_wtime();
 

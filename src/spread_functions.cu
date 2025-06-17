@@ -153,6 +153,9 @@ Fire simulate_fire(
     size_t height    = landscape.height;
     size_t num_cells = width * height;
 
+    cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
+    cudaMemcpyToSymbol(DEV_MOVES,  MOVES,  8 * 2 * sizeof(int));
+
     dim3 blockSize(32, 8);
     dim3 gridSize(
         (width  + blockSize.x - 1) / blockSize.x,
