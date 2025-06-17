@@ -9,6 +9,7 @@
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include <array>
+#include <algorithm>
 
 
 #include "fires.hpp"
@@ -45,7 +46,8 @@ CUDA_CALLABLE float spread_probability_scalar(
     if (!neighbor.burnable) return 0.0f;
 
     float slope = (neighbor.elevation - burning.elevation) / distance;
-    float slope_term = sin(atan(slope));
+    //float slope_term = sin(atan(slope));
+    float slope_term = slope * rsqrtf(1.0f + slope*slope);
     float wind_term = cos(angle - burning.wind_direction);
     float elev_term = (neighbor.elevation - elevation_mean) / elevation_sd;
 
@@ -144,92 +146,92 @@ __global__ void setup_rng_kernel(curandStateXORWOW_t* states,
 }
 
 
+__global__ void set_ignition_kernel(
+    unsigned int* d_burning_state,
+    const IgnitionPair* d_ignition,
+    size_t num_ignition,
+    size_t width
+) {
+    const size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_ignition) {
+        const size_t pos = d_ignition[idx].second * width + d_ignition[idx].first;
+        d_burning_state[pos] = 1;
+    }
+}
+
+
 Fire simulate_fire(
     const Landscape& landscape,
-    const Cell* d_landscape,
+    const Cell*        d_landscape,
     const std::vector<IgnitionPair>& ignition_cells,
-    unsigned int* d_burning_state,
+    unsigned int*      d_burning_state,
     curandStateXORWOW_t* d_rng_states,
-    SimulationParams params,
-    float distance,
-    float elevation_mean,
-    float elevation_sd,
-    size_t n_replicates,
-    float upper_limit
+    SimulationParams   params,
+    float              distance,
+    float              elevation_mean,
+    float              elevation_sd,
+    size_t             n_replicates,
+    float              upper_limit,
+    bool*              d_active_flag,    // Recibido desde fuera (pre-asignado)
+    cudaStream_t       stream,           // Recibido desde fuera (pre-creado)
+    unsigned int*      h_burned_layer    // Buffer pinned recibido desde fuera
 ) {
-    size_t width = landscape.width;
-    size_t height = landscape.height;
+    size_t width     = landscape.width;
+    size_t height    = landscape.height;
     size_t num_cells = width * height;
 
-    Fire result{
-        landscape.width,
-        landscape.height,
-        d_burning_state,
-        std::vector<IgnitionPair>(),
-        std::vector<size_t>()
-    };
+    dim3 blockSize(32, 8); 
+    dim3 gridSize(
+        (width  + blockSize.x - 1) / blockSize.x,
+        (height + blockSize.y - 1) / blockSize.y
+    );
 
-    cudaMemset(d_burning_state, 0, num_cells * sizeof(unsigned int));
-
-    unsigned int value = 1;
-    for (const auto& cell : ignition_cells) {
-        size_t idx = cell.second * width + cell.first;
-        cudaMemcpy(d_burning_state + idx, &value, sizeof(unsigned int), cudaMemcpyHostToDevice);
-    }
-
-    cudaMemcpyToSymbol(DEV_ANGLES, ANGLES, 8 * sizeof(float));
-    cudaMemcpyToSymbol(DEV_MOVES, MOVES, 8 * 2 * sizeof(int));
-
-    dim3 blockSize(16, 16);
-    dim3 gridSize((width + blockSize.x - 1) / blockSize.x,
-                 (height + blockSize.y - 1) / blockSize.y);
-
-    bool* d_active_flag;
-    cudaMalloc(&d_active_flag, sizeof(bool));
-
-    unsigned int current_iteration = 2;
+    unsigned int current_iteration = 1;
     bool h_active = true;
 
-
-    //Para cada replica, inicializar el estado del RNG
-    //setup_rng_kernel<<<gridSize, blockSize>>>(
-    //    d_rng_states,
-    //    12345678,  // seed base
-    //    width,
-    //    height,
-    //    n_replicates  // entre 0 y n_replicates
-    //);
-
     while (h_active) {
+        
         h_active = false;
-        cudaMemset(d_active_flag, 0, sizeof(bool));
+        cudaMemcpyAsync(d_active_flag, &h_active,
+                        sizeof(bool),
+                        cudaMemcpyHostToDevice,
+                        stream);
 
-        fire_spread_kernel<<<gridSize, blockSize>>>(
-            d_landscape, d_burning_state, d_rng_states,
+        
+        fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
+            d_landscape,
+            d_burning_state,
+            d_rng_states,
             width, height,
-            distance, elevation_mean, elevation_sd, upper_limit,
-            params, current_iteration,
+            distance, elevation_mean, elevation_sd,
+            upper_limit,
+            params,
+            current_iteration,
             d_active_flag
         );
 
-        cudaDeviceSynchronize();
-        cudaMemcpy(&h_active, d_active_flag, sizeof(bool), cudaMemcpyDeviceToHost);
+        
+        cudaMemcpyAsync(&h_active, d_active_flag,
+                        sizeof(bool),
+                        cudaMemcpyDeviceToHost,
+                        stream);
+        cudaStreamSynchronize(stream);  // Espera kernel + copia
 
-        current_iteration++;
+        ++current_iteration;
     }
 
-    unsigned int* h_burned_layer = new unsigned int[num_cells];
+    cudaMemcpyAsync(h_burned_layer,
+                    d_burning_state,
+                    num_cells * sizeof(unsigned int),
+                    cudaMemcpyDeviceToHost,
+                    stream);
+    cudaStreamSynchronize(stream);
 
-    // Copy from device to host
-    cudaMemcpy(h_burned_layer, d_burning_state,
-            num_cells * sizeof(unsigned int),
-            cudaMemcpyDeviceToHost);
-
-    result.width = width;
-    result.height = height;
-    result.burned_layer = h_burned_layer;
-
-    cudaFree(d_active_flag);
+    Fire result;
+    result.width        = width;
+    result.height       = height;
+    result.burned_layer = h_burned_layer; 
+    
 
     return result;
 }

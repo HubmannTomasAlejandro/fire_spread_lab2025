@@ -44,18 +44,27 @@ CUDA_CALLABLE float spread_probability_scalar(
     float upper_limit = 1.0f
 );
 
-// Función principal modificada para usar CUDA
-Fire simulate_fire(
-    const Landscape& landscape,
-    const Cell* d_landscape,
-    const std::vector<IgnitionPair>& ignition_cells,
+__global__ void set_ignition_kernel(
     unsigned int* d_burning_state,
-    curandStateXORWOW_t* d_rng_states,
-    SimulationParams params,
-    float distance,
-    float elevation_mean,
-    float elevation_sd,
-    size_t n_replicates,
-    float upper_limit = 1.0f
+    const IgnitionPair* d_ignition,
+    size_t num_ignition,
+    size_t width
 );
 
+
+Fire simulate_fire(
+    const Landscape& landscape,
+    const Cell*        d_landscape,
+    const std::vector<IgnitionPair>& ignition_cells,
+    unsigned int*      d_burning_state,
+    curandStateXORWOW_t* d_rng_states,
+    SimulationParams   params,
+    float              distance,
+    float              elevation_mean,
+    float              elevation_sd,
+    size_t             n_replicates,
+    float              upper_limit,
+    bool*              d_active_flag,    // Recibido desde fuera (pre-asignado)
+    cudaStream_t       stream,           // Recibido desde fuera (pre-creado)
+    unsigned int*      h_burned_layer    // Buffer pinned recibido desde fuera
+);
