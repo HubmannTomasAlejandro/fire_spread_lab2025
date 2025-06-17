@@ -19,14 +19,6 @@
 __constant__ float DEV_ANGLES[8];
 __constant__ int DEV_MOVES[8][2];
 
-CUDA_CALLABLE float random_xor(unsigned int seed) {
-    // XorShift algorithm for generating pseudo-random numbers
-    seed ^= (seed << 13);
-    seed ^= (seed >> 17);
-    seed ^= (seed << 5);
-    return static_cast<float>(seed) / static_cast<float>(UINT32_MAX);
-}
-
 
 CUDA_CALLABLE float spread_probability_scalar(
     const Cell& burning,
@@ -180,7 +172,7 @@ Fire simulate_fire(
     size_t height    = landscape.height;
     size_t num_cells = width * height;
 
-    dim3 blockSize(32, 8); 
+    dim3 blockSize(32, 8);
     dim3 gridSize(
         (width  + blockSize.x - 1) / blockSize.x,
         (height + blockSize.y - 1) / blockSize.y
@@ -190,14 +182,14 @@ Fire simulate_fire(
     bool h_active = true;
 
     while (h_active) {
-        
+
         h_active = false;
         cudaMemcpyAsync(d_active_flag, &h_active,
                         sizeof(bool),
                         cudaMemcpyHostToDevice,
                         stream);
 
-        
+
         fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
             d_landscape,
             d_burning_state,
@@ -210,7 +202,7 @@ Fire simulate_fire(
             d_active_flag
         );
 
-        
+
         cudaMemcpyAsync(&h_active, d_active_flag,
                         sizeof(bool),
                         cudaMemcpyDeviceToHost,
@@ -230,8 +222,8 @@ Fire simulate_fire(
     Fire result;
     result.width        = width;
     result.height       = height;
-    result.burned_layer = h_burned_layer; 
-    
+    result.burned_layer = h_burned_layer;
+
 
     return result;
 }
