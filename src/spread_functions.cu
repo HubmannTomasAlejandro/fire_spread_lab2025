@@ -19,6 +19,9 @@
 __constant__ float DEV_ANGLES[8];
 __constant__ int DEV_MOVES[8][2];
 
+constexpr size_t N = 100;
+__constant__ size_t batch_size_kernel = N; // Default batch size, can be changed
+
 
 CUDA_CALLABLE float spread_probability_scalar(
     const Cell& burning,
@@ -114,7 +117,7 @@ __global__ void fire_spread_kernel(
 
     //rng_states[idx] = rng_state; // Update the RNG state back to the array
 
-    if (thread_active) {
+    if (thread_active and current_iteration%batch_size_kernel == 2) {
         *active_flag = true;
     }
 }
@@ -165,6 +168,9 @@ Fire simulate_fire(
     unsigned int current_iteration = 2;
     bool h_active = true;
 
+    const size_t batch_size_host = N;  // Host-side batch size
+
+
     while (h_active) {
 
         h_active = false;
@@ -175,17 +181,21 @@ Fire simulate_fire(
 
         cudaStreamSynchronize(stream);
 
-        fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
-            d_landscape,
-            d_burning_state,
-            d_rng_states,
-            width, height,
-            distance, elevation_mean, elevation_sd,
-            upper_limit,
-            params,
-            current_iteration,
-            d_active_flag
-        );
+        for (size_t i = 0; i < batch_size_host; i++) {
+            fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
+                d_landscape,
+                d_burning_state,
+                d_rng_states,
+                width, height,
+                distance, elevation_mean, elevation_sd,
+                upper_limit,
+                params,
+                current_iteration,
+                d_active_flag
+            );
+
+            ++current_iteration;
+        }
 
         cudaMemcpyAsync(&h_active, d_active_flag,
             sizeof(bool),
@@ -195,7 +205,6 @@ Fire simulate_fire(
 
         cudaStreamSynchronize(stream);
 
-        ++current_iteration;
     }
 
     cudaMemcpyAsync(h_burned_layer,
