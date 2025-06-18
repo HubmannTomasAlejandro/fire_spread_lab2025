@@ -2,7 +2,7 @@ CXX      := icpx
 NVCC     := nvcc
 
 EXTRACXXFLAGS := -Ofast -march=native -funroll-loops -flto -mavx2
-CXXFLAGS      := -Wall -Wextra -Werror -fopenmp $(EXTRACXXFLAGS) -MMD -MP
+CXXFLAGS      := -Wall -Wextra -Werror -qopenmp $(EXTRACXXFLAGS) -MMD -MP
 #CUDAARCH      := -arch=sm_75
 CUDAFLAGS     := -O3 --expt-relaxed-constexpr #-Xcompiler="$(EXTRACXXFLAGS)" $(CUDAARCH) -flto no es compatible con CUDA
 INCLUDE       := -I./src

@@ -179,8 +179,6 @@ Fire simulate_fire(
                         cudaMemcpyHostToDevice,
                         stream);
 
-        cudaStreamSynchronize(stream);
-
         for (size_t i = 0; i < batch_size_host; i++) {
             fire_spread_kernel<<<gridSize, blockSize, 0, stream>>>(
                 d_landscape,
@@ -201,9 +199,6 @@ Fire simulate_fire(
             sizeof(bool),
             cudaMemcpyDeviceToHost,
             stream);
-            cudaStreamSynchronize(stream);  // Espera kernel + copia
-
-        cudaStreamSynchronize(stream);
 
     }
 
